@@ -46,6 +46,8 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.actiontech.dble.net.connection.PooledConnection.INITIAL;
+
 /**
  * @author mycatc
  */
@@ -76,20 +78,6 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
 
     private AtomicInteger state = new AtomicInteger(INITIAL);
 
-    @Override
-    public boolean compareAndSet(int expect, int update) {
-        return state.compareAndSet(expect, update);
-    }
-
-    @Override
-    public void lazySet(int update) {
-        state.lazySet(update);
-    }
-
-    @Override
-    public int getState() {
-        return state.get();
-    }
 
     private volatile long lastTime;
     private volatile String schema = null;
@@ -320,11 +308,11 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
     }
 
     private void sendAuthPacket(AuthPacket packet, byte[] authPassword, String authPluginName) {
-        packet.setPassword(authPassword);
+        /*packet.setPassword(authPassword);
         packet.setClientFlags(getClientFlagSha());
         packet.setAuthPlugin(authPluginName);
         packet.setDatabase(schema);
-        packet.writeWithKey(this);
+        packet.writeWithKey(this);*/
     }
 
     public boolean isAutocommit() {
@@ -340,7 +328,7 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
     }
 
     public void sendQueryCmd(String query, CharsetNames clientCharset) {
-        CommandPacket packet = new CommandPacket();
+        /*CommandPacket packet = new CommandPacket();
         packet.setPacketId(0);
         packet.setCommand(MySQLPacket.COM_QUERY);
         try {
@@ -355,8 +343,7 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
             packet.writeBigPackage(this, size);
         } else {
             packet.write(this);
-        }
-
+        }*/
     }
 
     @Override
@@ -647,7 +634,7 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
 
     public void close(String reason, boolean closeFrontConn) {
         if (closeFrontConn) {
-            session.getSource().close(reason);
+            session.getFrontConnection().close(reason);
         } else {
             close("normal");
         }
@@ -721,11 +708,11 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
             @Override
             public void run() {
                 try {
-                    conn.setExecuting(false);
+                    /*conn.setExecuting(false);
                     conn.setRowDataFlowing(false);
                     conn.signal();
                     handler.connectionClose(conn, reason);
-                    respHandler = null;
+                    respHandler = null;*/
                 } catch (Throwable e) {
                     LOGGER.warn("get error close mysql connection ", e);
                 }
@@ -767,17 +754,17 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
     }
 
     private synchronized void innerTerminate(String reason) {
-        if (!isClosed()) {
+        /*if (!isClosed()) {
             super.close(reason);
             // heartbeat conn is null
             if (dbInstance != null) {
                 dbInstance.close(this);
             }
-        }
+        }*/
     }
 
     public void commit() {
-        COMMIT.write(this);
+        //COMMIT.write(this);
     }
 
     public void execCmd(String cmd) {
@@ -785,7 +772,7 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
     }
 
     public void rollback() {
-        ROLLBACK.write(this);
+        //ROLLBACK.write(this);
     }
 
     public void release() {
@@ -805,11 +792,11 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
             return;
         }
         if (this.isRowDataFlowing()) {
-            if (logResponse.compareAndSet(false, true)) {
+            /*if (logResponse.compareAndSet(false, true)) {
                 session.setBackendResponseEndTime(this);
             }
             DbleServer.getInstance().getComplexQueryExecutor().execute(new BackEndRecycleRunnable(this));
-            return;
+            return;*/
         }
         complexQuery = false;
         metaDataSynced = true;
@@ -820,7 +807,7 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
         setResponseHandler(null);
         setSession(null);
         logResponse.set(false);
-        dbInstance.release(this);
+        //dbInstance.release(this);
     }
 
 

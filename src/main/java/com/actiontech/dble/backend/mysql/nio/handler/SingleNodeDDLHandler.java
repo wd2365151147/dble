@@ -23,42 +23,42 @@ public class SingleNodeDDLHandler extends SingleNodeHandler {
     }
 
     public void execute() throws Exception {
-        DDLTraceManager.getInstance().updateDDLStatus(DDLTraceInfo.DDLStage.EXECUTE_START, session.getSource());
+        DDLTraceManager.getInstance().updateDDLStatus(DDLTraceInfo.DDLStage.EXECUTE_START, session.getFrontConnection());
         try {
             super.execute();
         } catch (Exception e) {
-            DDLTraceManager.getInstance().endDDL(session.getSource(), e.getMessage());
+            DDLTraceManager.getInstance().endDDL(session.getFrontConnection(), e.getMessage());
             throw e;
         }
     }
 
     public void execute(BackendConnection conn) {
-        DDLTraceManager.getInstance().updateConnectionStatus(session.getSource(), (MySQLConnection) conn, DDLTraceInfo.DDLConnectionStatus.CONN_EXECUTE_START);
+        DDLTraceManager.getInstance().updateConnectionStatus(session.getFrontConnection(), (MySQLConnection) conn, DDLTraceInfo.DDLConnectionStatus.CONN_EXECUTE_START);
         super.execute(conn);
     }
 
     @Override
     public void connectionError(Throwable e, Object attachment) {
-        DDLTraceManager.getInstance().updateRouteNodeStatus(session.getSource(),
+        DDLTraceManager.getInstance().updateRouteNodeStatus(session.getFrontConnection(),
                 (RouteResultsetNode) attachment, DDLTraceInfo.DDLConnectionStatus.TEST_CONN_ERROR);
-        DDLTraceManager.getInstance().endDDL(session.getSource(), e.getMessage());
+        DDLTraceManager.getInstance().endDDL(session.getFrontConnection(), e.getMessage());
         super.connectionError(e, attachment);
     }
 
 
     @Override
     public void errorResponse(byte[] data, BackendConnection conn) {
-        DDLTraceManager.getInstance().updateConnectionStatus(session.getSource(),
+        DDLTraceManager.getInstance().updateConnectionStatus(session.getFrontConnection(),
                 (MySQLConnection) conn, DDLTraceInfo.DDLConnectionStatus.CONN_EXECUTE_ERROR);
-        DDLTraceManager.getInstance().endDDL(session.getSource(), "ddl end with execution failure");
+        DDLTraceManager.getInstance().endDDL(session.getFrontConnection(), "ddl end with execution failure");
         super.errorResponse(data, conn);
     }
 
     @Override
     public void connectionClose(BackendConnection conn, String reason) {
-        DDLTraceManager.getInstance().updateConnectionStatus(session.getSource(),
+        DDLTraceManager.getInstance().updateConnectionStatus(session.getFrontConnection(),
                 (MySQLConnection) conn, DDLTraceInfo.DDLConnectionStatus.EXECUTE_CONN_CLOSE);
-        DDLTraceManager.getInstance().endDDL(session.getSource(), reason);
+        DDLTraceManager.getInstance().endDDL(session.getFrontConnection(), reason);
         super.connectionClose(conn, reason);
     }
 
@@ -67,16 +67,16 @@ public class SingleNodeDDLHandler extends SingleNodeHandler {
     public void okResponse(byte[] data, BackendConnection conn) {
         boolean executeResponse = conn.syncAndExecute();
         if (executeResponse) {
-            DDLTraceManager.getInstance().updateConnectionStatus(session.getSource(), (MySQLConnection) conn, DDLTraceInfo.DDLConnectionStatus.CONN_EXECUTE_SUCCESS);
+            DDLTraceManager.getInstance().updateConnectionStatus(session.getFrontConnection(), (MySQLConnection) conn, DDLTraceInfo.DDLConnectionStatus.CONN_EXECUTE_SUCCESS);
             // handleSpecial
             boolean metaInitial = session.handleSpecial(rrs, true, null);
             if (!metaInitial) {
-                DDLTraceManager.getInstance().endDDL(session.getSource(), "ddl end with meta failure");
+                DDLTraceManager.getInstance().endDDL(session.getFrontConnection(), "ddl end with meta failure");
                 executeMetaDataFailed(conn);
             } else {
-                DDLTraceManager.getInstance().endDDL(session.getSource(), null);
+                DDLTraceManager.getInstance().endDDL(session.getFrontConnection(), null);
                 session.setRowCount(0);
-                ServerConnection source = session.getSource();
+                ServerConnection source = session.getFrontConnection();
                 OkPacket ok = new OkPacket();
                 ok.read(data);
                 ok.setPacketId(++packetId); // OK_PACKET
@@ -102,7 +102,7 @@ public class SingleNodeDDLHandler extends SingleNodeHandler {
         errPacket.setErrNo(ErrorCode.ER_META_DATA);
         String errMsg = "Create TABLE OK, but generate metedata failed. The reason may be that the current druid parser can not recognize part of the sql" +
                 " or the user for backend mysql does not have permission to execute the heartbeat sql.";
-        errPacket.setMessage(StringUtil.encode(errMsg, session.getSource().getCharset().getResults()));
+        errPacket.setMessage(StringUtil.encode(errMsg, session.getFrontConnection().getCharset().getResults()));
 
         session.setBackendResponseEndTime((MySQLConnection) conn);
         session.releaseConnectionIfSafe(conn, false);
@@ -111,14 +111,14 @@ public class SingleNodeDDLHandler extends SingleNodeHandler {
         boolean multiStatementFlag = session.getIsMultiStatement().get();
         doSqlStat();
         if (writeToClient.compareAndSet(false, true)) {
-            errPacket.write(session.getSource());
+            errPacket.write(session.getFrontConnection());
         }
         session.multiStatementNextSql(multiStatementFlag);
     }
 
     @Override
     protected void backConnectionErr(ErrorPacket errPkg, BackendConnection conn, boolean syncFinished) {
-        ServerConnection source = session.getSource();
+        ServerConnection source = session.getFrontConnection();
         if (conn.isClosed()) {
             if (conn.getAttachment() != null) {
                 RouteResultsetNode rNode = (RouteResultsetNode) conn.getAttachment();

@@ -7,21 +7,16 @@ package com.actiontech.dble.net;
 
 import com.actiontech.dble.backend.mysql.CharsetUtil;
 import com.actiontech.dble.backend.mysql.MySQLMessage;
-import com.actiontech.dble.backend.pool.PoolConfig;
 import com.actiontech.dble.config.Capabilities;
 import com.actiontech.dble.config.ErrorCode;
 import com.actiontech.dble.config.Versions;
 import com.actiontech.dble.config.model.SystemConfig;
 import com.actiontech.dble.config.model.user.UserName;
-import com.actiontech.dble.manager.ManagerConnection;
 import com.actiontech.dble.net.handler.FrontendQueryHandler;
-import com.actiontech.dble.net.mysql.ErrorPacket;
 import com.actiontech.dble.net.mysql.HandshakeV10Packet;
 import com.actiontech.dble.server.response.Ping;
 import com.actiontech.dble.singleton.FrontendUserManager;
 import com.actiontech.dble.util.RandomUtil;
-import com.actiontech.dble.util.StringUtil;
-import com.actiontech.dble.util.TimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +45,7 @@ public abstract class FrontendConnection extends AbstractConnection {
 
     protected FrontendQueryHandler queryHandler;
     protected String executeSql;
-    protected final long idleTimeout = PoolConfig.DEFAULT_IDLE_TIMEOUT;
+    //protected final long idleTimeout = PoolConfig.DEFAULT_IDLE_TIMEOUT;
 
     public FrontendConnection(NetworkChannel channel) throws IOException {
         super(channel);
@@ -170,13 +165,13 @@ public abstract class FrontendConnection extends AbstractConnection {
     }
 
     protected void writeErrMessage(byte id, int vendorCode, String sqlState, String msg) {
-        markFinished();
+        /*markFinished();
         ErrorPacket err = new ErrorPacket();
         err.setPacketId(id);
         err.setErrNo(vendorCode);
         err.setSqlState(StringUtil.encode(sqlState, charsetName.getResults()));
         err.setMessage(StringUtil.encode(msg, charsetName.getResults()));
-        err.write(this);
+        err.write(this);*/
     }
 
 
@@ -230,11 +225,12 @@ public abstract class FrontendConnection extends AbstractConnection {
     protected abstract void setSchema(String schema);
 
     public boolean isIdleTimeout() {
-        if (isAuthenticated) {
+       /* if (isAuthenticated) {
             return TimeUtil.currentTimeMillis() > Math.max(lastWriteTime, lastReadTime) + idleTimeout;
         } else {
             return TimeUtil.currentTimeMillis() > Math.max(lastWriteTime, lastReadTime) + AUTH_TIMEOUT;
-        }
+        }*/
+        return true;
     }
 
     @Override
@@ -305,8 +301,8 @@ public abstract class FrontendConnection extends AbstractConnection {
 
     @Override
     public void connectionCount() {
-        if (this.isAuthenticated) {
+        /*if (this.isAuthenticated) {
             FrontendUserManager.getInstance().countDown(user, (this instanceof ManagerConnection));
-        }
+        }*/
     }
 }

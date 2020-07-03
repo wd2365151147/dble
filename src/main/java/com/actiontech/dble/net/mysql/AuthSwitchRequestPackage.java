@@ -27,7 +27,7 @@ import java.nio.ByteBuffer;
  */
 public class AuthSwitchRequestPackage extends MySQLPacket {
 
-    private static final byte STATUS = (byte) 0xfe;
+    public static final byte STATUS = (byte) 0xfe;
     private byte[] authPluginName;
     private byte[] authPluginData;
 

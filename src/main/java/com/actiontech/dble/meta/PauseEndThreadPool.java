@@ -7,6 +7,7 @@ package com.actiontech.dble.meta;
 
 import com.actiontech.dble.route.RouteResultset;
 import com.actiontech.dble.server.ServerConnection;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.ExecutorUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,8 +67,8 @@ public class PauseEndThreadPool {
 
 
     //to put new task for this thread pool
-    public boolean offer(ServerConnection con, String nextStep, RouteResultset rrs) {
-        PauseTask task = new PauseTask(rrs, nextStep, con);
+    public boolean offer(MySQLShardingService service, String nextStep, RouteResultset rrs) {
+        PauseTask task = new PauseTask(rrs, nextStep, service);
         queueLock.lock();
         try {
             if (!teminateFlag) {
@@ -75,7 +76,7 @@ public class PauseEndThreadPool {
                     handlerQueue.offer(task);
                     return true;
                 } else {
-                    con.writeErrMessage(ER_YES, "The node is pausing, wait list is full");
+                    service.writeErrMessage(ER_YES, "The node is pausing, wait list is full");
                     queueNumber.decrementAndGet();
                 }
                 return true;
@@ -124,10 +125,10 @@ public class PauseEndThreadPool {
                         //execute the rrs from the session
                         switch (task.getNextStep()) {
                             case CONTINUE_TYPE_SINGLE:
-                                task.getCon().getSession2().execute(task.getRrs());
+                                task.getService().getSession2().execute(task.getRrs());
                                 break;
                             case CONTINUE_TYPE_MULTIPLE:
-                                task.getCon().getSession2().executeMultiSelect(task.getRrs());
+                                task.getService().getSession2().executeMultiSelect(task.getRrs());
                                 break;
                             default:
                                 break;
@@ -175,20 +176,20 @@ public class PauseEndThreadPool {
 
         RouteResultset rrs = null;
         String nextStep = null;
-        ServerConnection con = null;
+        MySQLShardingService service = null;
         long timestamp;
 
 
-        PauseTask(RouteResultset rrs, String nextStep, ServerConnection con) {
+        PauseTask(RouteResultset rrs, String nextStep, MySQLShardingService service) {
             this.nextStep = nextStep;
             this.rrs = rrs;
-            this.con = con;
+            this.service = service;
             timestamp = System.currentTimeMillis();
         }
 
         void timeOut() {
             queueNumber.decrementAndGet();
-            con.writeErrMessage(ER_YES, "waiting time exceeded wait_limit from pause shardingNode");
+            service.writeErrMessage(ER_YES, "waiting time exceeded wait_limit from pause shardingNode");
         }
 
         long waitTime() {
@@ -212,13 +213,6 @@ public class PauseEndThreadPool {
             this.nextStep = nextStep;
         }
 
-        public ServerConnection getCon() {
-            return con;
-        }
-
-        public void setCon(ServerConnection con) {
-            this.con = con;
-        }
 
         public long getTimestamp() {
             return timestamp;
@@ -227,6 +221,16 @@ public class PauseEndThreadPool {
         public void setTimestamp(long timestamp) {
             this.timestamp = timestamp;
         }
+
+
+        public MySQLShardingService getService() {
+            return service;
+        }
+
+        public void setService(MySQLShardingService service) {
+            this.service = service;
+        }
+
     }
 }
 

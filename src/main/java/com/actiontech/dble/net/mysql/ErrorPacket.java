@@ -8,6 +8,8 @@ package com.actiontech.dble.net.mysql;
 import com.actiontech.dble.backend.mysql.BufferUtil;
 import com.actiontech.dble.backend.mysql.MySQLMessage;
 import com.actiontech.dble.net.FrontendConnection;
+import com.actiontech.dble.net.connection.AbstractConnection;
+import com.actiontech.dble.net.service.AbstractService;
 import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.singleton.BufferPoolManager;
 import com.actiontech.dble.singleton.SerializableLock;
@@ -88,10 +90,10 @@ public class ErrorPacket extends MySQLPacket {
     }
 
     @Override
-    public ByteBuffer write(ByteBuffer buffer, FrontendConnection c,
+    public ByteBuffer write(ByteBuffer buffer, AbstractService service,
                             boolean writeSocketIfFull) {
         int size = calcPacketSize();
-        buffer = c.checkWriteBuffer(buffer, PACKET_HEADER_SIZE + size,
+        buffer = service.checkWriteBuffer(buffer, PACKET_HEADER_SIZE + size,
                 writeSocketIfFull);
         BufferUtil.writeUB3(buffer, size);
         buffer.put(packetId);
@@ -100,18 +102,19 @@ public class ErrorPacket extends MySQLPacket {
         buffer.put(mark);
         buffer.put(sqlState);
         if (message != null) {
-            buffer = c.writeToBuffer(message, buffer);
+            buffer = service.writeToBuffer(message, buffer);
         }
         return buffer;
     }
 
 
-    public void write(FrontendConnection c) {
-        if (c instanceof ServerConnection) {
+    public void write(AbstractConnection c) {
+        /* todo change the logic into the normal place
+          if (c instanceof ServerConnection) {
             SerializableLock.getInstance().unLock(c.getId());
-        }
+        }*/
         ByteBuffer buffer = c.allocate();
-        buffer = this.write(buffer, c, true);
+        buffer = this.write(buffer, (AbstractService) c.getService(), true);
         c.write(buffer);
     }
 

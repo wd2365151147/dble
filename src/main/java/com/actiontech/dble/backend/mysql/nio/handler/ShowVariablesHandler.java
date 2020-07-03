@@ -18,12 +18,12 @@ public class ShowVariablesHandler extends SingleNodeHandler {
 
     public ShowVariablesHandler(RouteResultset rrs, NonBlockingSession session) {
         super(rrs, session);
-        shadowVars = session.getSource().getSysVariables();
+        shadowVars = session.getFrontConnection().getSysVariables();
     }
 
     @Override
     public boolean rowResponse(byte[] row, RowDataPacket rowPacket, boolean isLeft, BackendConnection conn) {
-        String charset = session.getSource().getCharset().getResults();
+        String charset = session.getFrontConnection().getCharset().getResults();
         RowDataPacket rowDataPacket = new RowDataPacket(2);
         /* Fixme: the accurate statistics of netOutBytes.
          *

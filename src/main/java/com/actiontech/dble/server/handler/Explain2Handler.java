@@ -16,6 +16,7 @@ import com.actiontech.dble.route.RouteResultset;
 import com.actiontech.dble.route.RouteResultsetNode;
 import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.parser.ServerParse;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,19 +42,19 @@ public final class Explain2Handler {
                 Fields.FIELD_TYPE_VAR_STRING);
     }
 
-    public static void handle(String stmt, ServerConnection c, int offset) {
+    public static void handle(String stmt, MySQLShardingService service, int offset) {
 
         try {
             stmt = stmt.substring(offset);
             if (!stmt.toLowerCase().contains("shardingnode=") || !stmt.toLowerCase().contains("sql=")) {
-                showError(stmt, c, "explain2 shardingnode=? sql=?");
+                showError(stmt, service, "explain2 shardingnode=? sql=?");
                 return;
             }
             String shardingNode = stmt.substring(stmt.indexOf("=") + 1, stmt.indexOf("sql=")).trim();
             String sql = "explain " + stmt.substring(stmt.indexOf("sql=") + 4, stmt.length()).trim();
 
             if (shardingNode.isEmpty() || sql.isEmpty()) {
-                showError(stmt, c, "shardingNode or sql is empty");
+                showError(stmt, service, "shardingNode or sql is empty");
                 return;
             }
 
@@ -61,45 +62,45 @@ public final class Explain2Handler {
             RouteResultset rrs = new RouteResultset(sql, ServerParse.SELECT);
             EMPTY_ARRAY[0] = node;
             rrs.setNodes(EMPTY_ARRAY);
-            SingleNodeHandler singleNodeHandler = new SingleNodeHandler(rrs, c.getSession2());
+            SingleNodeHandler singleNodeHandler = new SingleNodeHandler(rrs, service.getSession2());
             singleNodeHandler.execute();
         } catch (Exception e) {
             LOGGER.info(e.getMessage(), e.getCause());
-            showError(stmt, c, e.getMessage());
+            showError(stmt, service, e.getMessage());
         }
     }
 
-    private static void showError(String stmt, ServerConnection c, String msg) {
-        ByteBuffer buffer = c.allocate();
+    private static void showError(String stmt, MySQLShardingService service, String msg) {
+        ByteBuffer buffer = service.allocate();
         // write header
         ResultSetHeaderPacket header = PacketUtil.getHeader(FIELD_COUNT);
         byte packetId = header.getPacketId();
-        buffer = header.write(buffer, c, true);
+        buffer = header.write(buffer, service, true);
 
         // write fields
         for (FieldPacket field : FIELDS) {
             field.setPacketId(++packetId);
-            buffer = field.write(buffer, c, true);
+            buffer = field.write(buffer, service, true);
         }
 
         // write eof
         EOFPacket eof = new EOFPacket();
         eof.setPacketId(++packetId);
-        buffer = eof.write(buffer, c, true);
+        buffer = eof.write(buffer, service, true);
 
 
         RowDataPacket row = new RowDataPacket(FIELD_COUNT);
-        row.add(StringUtil.encode(stmt, c.getCharset().getResults()));
-        row.add(StringUtil.encode(msg, c.getCharset().getResults()));
+        row.add(StringUtil.encode(stmt, service.getCharset().getResults()));
+        row.add(StringUtil.encode(msg, service.getCharset().getResults()));
         row.setPacketId(++packetId);
-        buffer = row.write(buffer, c, true);
+        buffer = row.write(buffer, service, true);
 
         // write last eof
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
-        buffer = lastEof.write(buffer, c, true);
+        buffer = lastEof.write(buffer, service, true);
 
         // post write
-        c.write(buffer);
+        service.write(buffer);
     }
 }

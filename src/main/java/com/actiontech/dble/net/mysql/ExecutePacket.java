@@ -58,7 +58,6 @@ import java.io.UnsupportedEncodingException;
  *
  *  values:                    for all non-NULL values, each parameters appends its value
  *                             as described in Row Data Packet: Binary (column values)
- * @see http://dev.mysql.com/doc/internals/en/execute-packet.html
  * </pre>
  *
  * @author mycat

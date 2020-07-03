@@ -9,6 +9,7 @@ import com.actiontech.dble.backend.mysql.BufferUtil;
 import com.actiontech.dble.backend.mysql.MySQLMessage;
 import com.actiontech.dble.backend.mysql.StreamUtil;
 import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
+import com.actiontech.dble.services.mysqlsharding.MySQLResponseService;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -93,44 +94,44 @@ public class CommandPacket extends MySQLPacket {
     }
 
     @Override
-    public void write(MySQLConnection c) {
-        ByteBuffer buffer = c.allocate();
+    public void write(MySQLResponseService service) {
+        ByteBuffer buffer = service.allocate();
         try {
             BufferUtil.writeUB3(buffer, calcPacketSize());
             buffer.put(packetId);
             buffer.put(command);
-            buffer = c.writeToBuffer(arg, buffer);
-            c.write(buffer);
+            buffer = service.writeToBuffer(arg, buffer);
+            service.write(buffer);
         } catch (java.nio.BufferOverflowException e1) {
             //fixed issues #98 #1072
-            buffer = c.checkWriteBuffer(buffer, PACKET_HEADER_SIZE + calcPacketSize(), false);
+            buffer = service.checkWriteBuffer(buffer, PACKET_HEADER_SIZE + calcPacketSize(), false);
             BufferUtil.writeUB3(buffer, calcPacketSize());
             buffer.put(packetId);
             buffer.put(command);
-            buffer = c.writeToBuffer(arg, buffer);
-            c.write(buffer);
+            buffer = service.writeToBuffer(arg, buffer);
+            service.write(buffer);
         }
     }
 
-    public void writeBigPackage(MySQLConnection c, int size) {
+    public void writeBigPackage(MySQLResponseService service, int size) {
         ByteBuffer buffer = null;
         int remain = 0;
         boolean isFirst = true;
         while (size >= MySQLPacket.MAX_PACKET_SIZE) {
-            buffer = c.allocate(MySQLPacket.MAX_PACKET_SIZE + MySQLPacket.PACKET_HEADER_SIZE);
+            buffer = service.allocate(MySQLPacket.MAX_PACKET_SIZE + MySQLPacket.PACKET_HEADER_SIZE);
             size -= MySQLPacket.MAX_PACKET_SIZE;
             BufferUtil.writeUB3(buffer, MySQLPacket.MAX_PACKET_SIZE);
             buffer.put(packetId++);
             remain = writeBody(buffer, isFirst, remain);
-            c.write(buffer);
+            service.write(buffer);
             isFirst = false;
         }
 
-        buffer = c.allocate(size + MySQLPacket.PACKET_HEADER_SIZE);
+        buffer = service.allocate(size + MySQLPacket.PACKET_HEADER_SIZE);
         BufferUtil.writeUB3(buffer, size);
         buffer.put(packetId);
         writeBody(buffer, isFirst, remain);
-        c.write(buffer);
+        service.write(buffer);
     }
 
     private int writeBody(ByteBuffer buffer, boolean isFirst, int remain) {

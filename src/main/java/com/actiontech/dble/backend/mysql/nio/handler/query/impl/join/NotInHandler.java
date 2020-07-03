@@ -129,7 +129,7 @@ public class NotInHandler extends OwnThreadDMLHandler {
         MySQLConnection conn = (MySQLConnection) objects[0];
         LocalResult leftLocal = null, rightLocal = null;
         try {
-            boolean caseInsensitive = CharsetUtil.isCaseInsensitive(session.getSource().getCharset().getCollation());
+            boolean caseInsensitive = CharsetUtil.isCaseInsensitive(session.getFrontConnection().getCharset().getCollation());
             Comparator<RowDataPacket> notInComparator = new TwoTableComparator(leftFieldPackets, rightFieldPackets,
                     leftOrders, rightOrders, this.isAllPushDown(), this.type(), caseInsensitive);
 

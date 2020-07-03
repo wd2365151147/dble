@@ -11,7 +11,6 @@ import com.actiontech.dble.config.Versions;
 import com.actiontech.dble.config.loader.SystemConfigLoader;
 import com.actiontech.dble.config.model.SystemConfig;
 import com.actiontech.dble.config.util.StartProblemReporter;
-import com.actiontech.dble.manager.handler.ShowServerLog;
 import com.actiontech.dble.singleton.CustomMySQLHa;
 import com.actiontech.dble.singleton.OnlineStatus;
 
@@ -48,7 +47,7 @@ public final class DbleStartup {
             });
             // startup
             DbleServer.getInstance().startup();
-            System.out.println("Server startup successfully. dble version is [" + new String(Versions.getServerVersion()) + "]. Please see logs in logs/" + ShowServerLog.DEFAULT_LOGFILE);
+            //System.out.println("Server startup successfully. dble version is [" + new String(Versions.getServerVersion()) + "]. Please see logs in logs/" + ShowServerLog.DEFAULT_LOGFILE);
         } catch (Throwable e) {
             e.printStackTrace();
             System.exit(-1);

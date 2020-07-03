@@ -7,7 +7,6 @@ package com.actiontech.dble.backend;
 
 import com.actiontech.dble.backend.datasource.PhysicalDbInstance;
 import com.actiontech.dble.backend.mysql.nio.handler.ResponseHandler;
-import com.actiontech.dble.backend.pool.PooledEntry;
 import com.actiontech.dble.net.ClosableConnection;
 import com.actiontech.dble.route.RouteResultsetNode;
 import com.actiontech.dble.server.NonBlockingSession;
@@ -15,7 +14,7 @@ import com.actiontech.dble.server.ServerConnection;
 
 import java.io.UnsupportedEncodingException;
 
-public interface BackendConnection extends ClosableConnection, PooledEntry {
+public interface BackendConnection extends ClosableConnection {
 
     boolean isDDL();
 

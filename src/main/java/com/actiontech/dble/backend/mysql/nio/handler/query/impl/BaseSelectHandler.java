@@ -77,7 +77,7 @@ public class BaseSelectHandler extends BaseDMLHandler {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(conn.toString() + " send sql:" + rrss.getStatement());
         }
-        conn.executeMultiNode(rrss, session.getSource(), autocommit);
+        conn.executeMultiNode(rrss, session.getFrontConnection(), autocommit);
     }
 
     public RouteResultsetNode getRrss() {
@@ -182,7 +182,7 @@ public class BaseSelectHandler extends BaseDMLHandler {
 
     @Override
     protected void onTerminate() {
-        if (autocommit && !session.getSource().isLocked()) {
+        if (autocommit && !session.getFrontConnection().isLocked()) {
             this.session.releaseConnection(rrss, LOGGER.isDebugEnabled(), false);
         } else {
             //the connection should wait until the connection running finish

@@ -35,7 +35,7 @@ public class XARollbackFailStage extends XARollbackStage {
         if (!isFail || xaOldThreadIds.isEmpty()) {
             XAStateLog.saveXARecoveryLog(xaId, TxState.TX_ROLLBACKED_STATE);
             // remove session in background
-            XASessionCheck.getInstance().getRollbackingSession().remove(session.getSource().getId());
+            XASessionCheck.getInstance().getRollbackingSession().remove(session.getFrontConnection().getId());
             // resolve alert
             AlertUtil.alertSelfResolve(AlarmCode.XA_BACKGROUND_RETRY_FAIL, Alert.AlertLevel.WARN, AlertUtil.genSingleLabel("XA_ID", xaId));
             feedback(false);
@@ -56,7 +56,7 @@ public class XARollbackFailStage extends XARollbackStage {
                 closeReason.append(", the ERROR is ");
                 closeReason.append(errMsg);
             }
-            session.getSource().close(closeReason.toString());
+            session.getFrontConnection().close(closeReason.toString());
         }
 
         // kill xa or retry to commit xa in background

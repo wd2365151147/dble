@@ -38,7 +38,7 @@ public class LockTablesHandler extends MultiNodeHandler {
         super(session);
         this.rrs = rrs;
         unResponseRrns.addAll(Arrays.asList(rrs.getNodes()));
-        this.autocommit = session.getSource().isAutocommit();
+        this.autocommit = session.getFrontConnection().isAutocommit();
     }
 
     public void execute() throws Exception {
@@ -50,7 +50,7 @@ public class LockTablesHandler extends MultiNodeHandler {
             } else {
                 // create new connection
                 ShardingNode dn = DbleServer.getInstance().getConfig().getShardingNodes().get(node.getName());
-                dn.getConnection(dn.getDatabase(), session.getSource().isTxStart(), autocommit, node, this, node);
+                dn.getConnection(dn.getDatabase(), session.getFrontConnection().isTxStart(), autocommit, node, this, node);
             }
         }
     }
@@ -61,7 +61,7 @@ public class LockTablesHandler extends MultiNodeHandler {
         }
         conn.setResponseHandler(this);
         conn.setSession(session);
-        conn.execute(node, session.getSource(), autocommit);
+        conn.execute(node, session.getFrontConnection(), autocommit);
     }
 
     @Override
@@ -113,13 +113,13 @@ public class LockTablesHandler extends MultiNodeHandler {
                 lock.lock();
                 try {
                     ok.setPacketId(++packetId);
-                    ok.setServerStatus(session.getSource().isAutocommit() ? 2 : 1);
+                    ok.setServerStatus(session.getFrontConnection().isAutocommit() ? 2 : 1);
                 } finally {
                     lock.unlock();
                 }
                 session.multiStatementPacket(ok, packetId);
                 boolean multiStatementFlag = session.getIsMultiStatement().get();
-                ok.write(session.getSource());
+                ok.write(session.getFrontConnection());
                 session.multiStatementNextSql(multiStatementFlag);
             }
         }
@@ -129,14 +129,14 @@ public class LockTablesHandler extends MultiNodeHandler {
     public void fieldEofResponse(byte[] header, List<byte[]> fields, List<FieldPacket> fieldPackets, byte[] eof,
                                  boolean isLeft, BackendConnection conn) {
         LOGGER.info("unexpected packet for " +
-                conn + " bound by " + session.getSource() +
+                conn + " bound by " + session.getFrontConnection() +
                 ": field's eof");
     }
 
     @Override
     public boolean rowResponse(byte[] row, RowDataPacket rowPacket, boolean isLeft, BackendConnection conn) {
         LOGGER.info("unexpected packet for " +
-                conn + " bound by " + session.getSource() +
+                conn + " bound by " + session.getFrontConnection() +
                 ": row data packet");
         return false;
     }
@@ -144,7 +144,7 @@ public class LockTablesHandler extends MultiNodeHandler {
     @Override
     public void rowEofResponse(byte[] eof, boolean isLeft, BackendConnection conn) {
         LOGGER.info("unexpected packet for " +
-                conn + " bound by " + session.getSource() +
+                conn + " bound by " + session.getFrontConnection() +
                 ": row's eof");
     }
 

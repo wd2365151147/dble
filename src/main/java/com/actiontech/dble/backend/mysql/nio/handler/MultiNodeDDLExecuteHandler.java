@@ -60,10 +60,10 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
             }
         }
         if (sb.length() > 0) {
-            TxnLogHelper.putTxnLog(session.getSource(), sb.toString());
+            TxnLogHelper.putTxnLog(session.getFrontConnection(), sb.toString());
         }
 
-        DDLTraceManager.getInstance().updateDDLStatus(DDLTraceInfo.DDLStage.EXECUTE_START, session.getSource());
+        DDLTraceManager.getInstance().updateDDLStatus(DDLTraceInfo.DDLStage.EXECUTE_START, session.getFrontConnection());
         for (final RouteResultsetNode node : rrs.getNodes()) {
             BackendConnection conn = session.getTarget(node);
             if (session.tryExistsCon(conn, node)) {
@@ -73,7 +73,7 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
                 connRrns.add(node);
                 node.setRunOnSlave(rrs.getRunOnSlave());
                 ShardingNode dn = DbleServer.getInstance().getConfig().getShardingNodes().get(node.getName());
-                dn.getConnection(dn.getDatabase(), session.getSource().isTxStart(), sessionAutocommit, node, this, node);
+                dn.getConnection(dn.getDatabase(), session.getFrontConnection().isTxStart(), sessionAutocommit, node, this, node);
             }
         }
     }
@@ -81,7 +81,7 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
 
     @Override
     public void errorResponse(byte[] data, BackendConnection conn) {
-        DDLTraceManager.getInstance().updateConnectionStatus(session.getSource(), (MySQLConnection) conn,
+        DDLTraceManager.getInstance().updateConnectionStatus(session.getFrontConnection(), (MySQLConnection) conn,
                 DDLTraceInfo.DDLConnectionStatus.CONN_EXECUTE_ERROR);
         ErrorPacket errPacket = new ErrorPacket();
         errPacket.read(data);
@@ -100,10 +100,10 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
             errConnection.add(conn);
             if (decrementToZero(conn)) {
                 session.handleSpecial(rrs, false, getDDLErrorInfo());
-                DDLTraceManager.getInstance().endDDL(session.getSource(), getDDLErrorInfo());
+                DDLTraceManager.getInstance().endDDL(session.getFrontConnection(), getDDLErrorInfo());
                 packetId++;
                 if (byteBuffer != null) {
-                    session.getSource().write(byteBuffer);
+                    session.getFrontConnection().write(byteBuffer);
                 }
                 handleEndPacket(errPacket.toBytes(), false);
             }
@@ -115,7 +115,7 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
 
     @Override
     public void connectionClose(BackendConnection conn, String reason) {
-        DDLTraceManager.getInstance().updateConnectionStatus(session.getSource(), (MySQLConnection) conn,
+        DDLTraceManager.getInstance().updateConnectionStatus(session.getFrontConnection(), (MySQLConnection) conn,
                 DDLTraceInfo.DDLConnectionStatus.EXECUTE_CONN_CLOSE);
         if (checkClosedConn(conn)) {
             return;
@@ -127,7 +127,7 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
         errPacket.setErrNo(ErrorCode.ER_ABORTING_CONNECTION);
         reason = "Connection {dbInstance[" + conn.getHost() + ":" + conn.getPort() + "],Schema[" + conn.getSchema() + "],threadID[" +
                 ((MySQLConnection) conn).getThreadId() + "]} was closed ,reason is [" + reason + "]";
-        errPacket.setMessage(StringUtil.encode(reason, session.getSource().getCharset().getResults()));
+        errPacket.setMessage(StringUtil.encode(reason, session.getFrontConnection().getCharset().getResults()));
         err = errPacket;
         session.resetMultiStatementStatus();
         lock.lock();
@@ -151,9 +151,9 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
             mysqlCon.close("DDL find connection close");
         } else {
             mysqlCon.setSession(session);
-            DDLTraceManager.getInstance().updateConnectionStatus(session.getSource(), mysqlCon,
+            DDLTraceManager.getInstance().updateConnectionStatus(session.getFrontConnection(), mysqlCon,
                     DDLTraceInfo.DDLConnectionStatus.CONN_EXECUTE_START);
-            mysqlCon.executeMultiNode(node, session.getSource(), sessionAutocommit && !session.getSource().isTxStart());
+            mysqlCon.executeMultiNode(node, session.getFrontConnection(), sessionAutocommit && !session.getFrontConnection().isTxStart());
         }
     }
 
@@ -165,10 +165,10 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
             LOGGER.debug("received ok response ,executeResponse:" + executeResponse + " from " + conn);
         }
         if (executeResponse) {
-            DDLTraceManager.getInstance().updateConnectionStatus(session.getSource(), (MySQLConnection) conn,
+            DDLTraceManager.getInstance().updateConnectionStatus(session.getFrontConnection(), (MySQLConnection) conn,
                     DDLTraceInfo.DDLConnectionStatus.CONN_EXECUTE_SUCCESS);
             session.setBackendResponseEndTime((MySQLConnection) conn);
-            ServerConnection source = session.getSource();
+            ServerConnection source = session.getFrontConnection();
             OkPacket ok = new OkPacket();
             ok.read(data);
             lock.lock();
@@ -206,7 +206,7 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
 
     @Override
     public void connectionError(Throwable e, Object attachment) {
-        DDLTraceManager.getInstance().updateRouteNodeStatus(session.getSource(), (RouteResultsetNode) attachment, DDLTraceInfo.DDLConnectionStatus.EXECUTE_CONN_ERROR);
+        DDLTraceManager.getInstance().updateRouteNodeStatus(session.getFrontConnection(), (RouteResultsetNode) attachment, DDLTraceInfo.DDLConnectionStatus.EXECUTE_CONN_ERROR);
         super.connectionError(e, attachment);
     }
 
@@ -216,7 +216,7 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
         errPacket.setErrNo(ErrorCode.ER_META_DATA);
         String errMsg = "Create TABLE OK, but generate metedata failed. The reason may be that the current druid parser can not recognize part of the sql" +
                 " or the user for backend mysql does not have permission to execute the heartbeat sql.";
-        errPacket.setMessage(StringUtil.encode(errMsg, session.getSource().getCharset().getResults()));
+        errPacket.setMessage(StringUtil.encode(errMsg, session.getFrontConnection().getCharset().getResults()));
         session.multiStatementPacket(errPacket, packetId);
         doSqlStat();
         handleEndPacket(errPacket.toBytes(), false);
@@ -252,12 +252,12 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
         errConnection.add(conn);
         if (canResponse()) {
             session.handleSpecial(rrs, false, null);
-            DDLTraceManager.getInstance().endDDL(session.getSource(), new String(err.getMessage()));
+            DDLTraceManager.getInstance().endDDL(session.getFrontConnection(), new String(err.getMessage()));
             packetId++;
             if (byteBuffer == null) {
                 handleEndPacket(err.toBytes(), false);
             } else {
-                session.getSource().write(byteBuffer);
+                session.getFrontConnection().write(byteBuffer);
                 handleEndPacket(err.toBytes(), false);
             }
         }
@@ -280,7 +280,7 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
     private void handleEndPacket(byte[] data, boolean isSuccess) {
         session.clearResources(false);
         session.setResponseTime(isSuccess);
-        session.getSource().write(data);
+        session.getFrontConnection().write(data);
     }
 
 }

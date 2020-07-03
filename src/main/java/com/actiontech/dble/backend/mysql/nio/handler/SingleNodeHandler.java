@@ -73,7 +73,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
     public void execute() throws Exception {
         connClosed = false;
         if (rrs.isLoadData()) {
-            packetId = session.getSource().getLoadDataInfileHandler().getLastPackId();
+            packetId = session.getFrontConnection().getLoadDataInfileHandler().getLastPackId();
         } else {
             packetId = (byte) session.getPacketId().get();
         }
@@ -102,7 +102,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
         node.setRunOnSlave(rrs.getRunOnSlave());
         ServerConfig conf = DbleServer.getInstance().getConfig();
         ShardingNode dn = conf.getShardingNodes().get(node.getName());
-        dn.getConnection(dn.getDatabase(), session.getSource().isTxStart(), session.getSource().isAutocommit(), node, this, node);
+        dn.getConnection(dn.getDatabase(), session.getFrontConnection().isTxStart(), session.getFrontConnection().isAutocommit(), node, this, node);
     }
 
     protected void execute(BackendConnection conn) {
@@ -113,11 +113,11 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
         }
         conn.setResponseHandler(this);
         conn.setSession(session);
-        boolean isAutocommit = session.getSource().isAutocommit() && !session.getSource().isTxStart();
+        boolean isAutocommit = session.getFrontConnection().isAutocommit() && !session.getFrontConnection().isTxStart();
         if (!isAutocommit && node.isModifySQL()) {
-            TxnLogHelper.putTxnLog(session.getSource(), node.getStatement());
+            TxnLogHelper.putTxnLog(session.getFrontConnection(), node.getStatement());
         }
-        conn.execute(node, session.getSource(), isAutocommit);
+        conn.execute(node, session.getFrontConnection(), isAutocommit);
     }
 
     @Override
@@ -138,7 +138,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
         errPacket.setPacketId(++packetId);
         errPacket.setErrNo(ErrorCode.ER_DB_INSTANCE_ABORTING_CONNECTION);
         String errMsg = "can't connect to shardingNode[" + rrn.getName() + "], due to " + e.getMessage();
-        errPacket.setMessage(StringUtil.encode(errMsg, session.getSource().getCharset().getResults()));
+        errPacket.setMessage(StringUtil.encode(errMsg, session.getFrontConnection().getCharset().getResults()));
         LOGGER.warn(errMsg);
         backConnectionErr(errPacket, null, false);
     }
@@ -156,7 +156,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
         lock.lock();
         try {
             if (buffer != null) {
-                session.getSource().recycle(buffer);
+                session.getFrontConnection().recycle(buffer);
             }
         } finally {
             lock.unlock();
@@ -164,7 +164,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
     }
 
     protected void backConnectionErr(ErrorPacket errPkg, BackendConnection conn, boolean syncFinished) {
-        ServerConnection source = session.getSource();
+        ServerConnection source = session.getFrontConnection();
         UserName errUser = source.getUser();
         String errHost = source.getHost();
         int errPort = source.getLocalPort();
@@ -195,7 +195,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
         try {
             if (writeToClient.compareAndSet(false, true)) {
                 if (rrs.isLoadData()) {
-                    session.getSource().getLoadDataInfileHandler().clear();
+                    session.getFrontConnection().getLoadDataInfileHandler().clear();
                 }
                 if (buffer != null) {
                     /* SELECT 9223372036854775807 + 1;    response: field_count, field, eof, err */
@@ -225,7 +225,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
         boolean executeResponse = conn.syncAndExecute();
         if (executeResponse) {
             this.resultSize += data.length;
-            ServerConnection source = session.getSource();
+            ServerConnection source = session.getFrontConnection();
             OkPacket ok = new OkPacket();
             ok.read(data);
             if (rrs.isLoadData()) {
@@ -270,7 +270,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
 
         eof[3] = ++packetId;
         session.multiStatementPacket(eof, packetId);
-        ServerConnection source = session.getSource();
+        ServerConnection source = session.getFrontConnection();
         session.setResponseTime(true);
         final boolean multiStatementFlag = session.getIsMultiStatement().get();
         doSqlStat();
@@ -292,7 +292,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
             if (rrs.getStatement() != null) {
                 netInBytes = rrs.getStatement().getBytes().length;
             }
-            QueryResult queryResult = new QueryResult(session.getSource().getUser(), rrs.getSqlType(), rrs.getStatement(), selectRows,
+            QueryResult queryResult = new QueryResult(session.getFrontConnection().getUser(), rrs.getSqlType(), rrs.getStatement(), selectRows,
                     netInBytes, netOutBytes, session.getQueryStartTime(), System.currentTimeMillis(), resultSize);
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("try to record sql:" + rrs.getStatement());
@@ -315,11 +315,11 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
 
         header[3] = ++packetId;
 
-        ServerConnection source = session.getSource();
+        ServerConnection source = session.getFrontConnection();
         lock.lock();
         try {
             if (!writeToClient.get()) {
-                buffer = session.getSource().allocate();
+                buffer = session.getFrontConnection().allocate();
                 buffer = source.writeToBuffer(header, buffer);
                 for (int i = 0, len = fields.size(); i < len; ++i) {
                     byte[] field = fields.get(i);
@@ -363,8 +363,8 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
             if (!writeToClient.get()) {
                 FlowControllerConfig fconfig = WriteQueueFlowController.getFlowCotrollerConfig();
                 if (fconfig.isEnableFlowControl() &&
-                        session.getSource().getWriteQueue().size() > fconfig.getStart()) {
-                    session.getSource().startFlowControl(conn);
+                        session.getFrontConnection().getWriteQueue().size() > fconfig.getStart()) {
+                    session.getFrontConnection().startFlowControl(conn);
                 }
                 if (session.isPrepared()) {
                     RowDataPacket rowDataPk = new RowDataPacket(fieldCount);
@@ -373,15 +373,15 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
                     BinaryRowDataPacket binRowDataPk = new BinaryRowDataPacket();
                     binRowDataPk.read(fieldPackets, rowDataPk);
                     binRowDataPk.setPacketId(rowDataPk.getPacketId());
-                    buffer = binRowDataPk.write(buffer, session.getSource(), true);
+                    buffer = binRowDataPk.write(buffer, session.getFrontConnection(), true);
                     this.packetId = (byte) session.getPacketId().get();
                 } else {
                     if (row.length >= MySQLPacket.MAX_PACKET_SIZE + MySQLPacket.PACKET_HEADER_SIZE) {
-                        buffer = session.getSource().writeBigPackageToBuffer(row, buffer, packetId);
+                        buffer = session.getFrontConnection().writeBigPackageToBuffer(row, buffer, packetId);
                         this.packetId = (byte) session.getPacketId().get();
                     } else {
                         row[3] = ++packetId;
-                        buffer = session.getSource().writeToBuffer(row, buffer);
+                        buffer = session.getFrontConnection().writeToBuffer(row, buffer);
                     }
                 }
             }
@@ -403,7 +403,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
         ErrorPacket err = new ErrorPacket();
         err.setPacketId(++packetId);
         err.setErrNo(ErrorCode.ER_ERROR_ON_CLOSE);
-        err.setMessage(StringUtil.encode(reason, session.getSource().getCharset().getResults()));
+        err.setMessage(StringUtil.encode(reason, session.getFrontConnection().getCharset().getResults()));
         this.backConnectionErr(err, conn, true);
     }
 

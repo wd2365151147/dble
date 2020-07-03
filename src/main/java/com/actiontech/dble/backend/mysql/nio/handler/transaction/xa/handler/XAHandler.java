@@ -33,7 +33,7 @@ public class XAHandler extends AbstractXAHandler implements TransactionHandler {
                 return;
             }
             boolean multiStatementFlag = session.getIsMultiStatement().get();
-            session.getSource().write(session.getOkByteArray());
+            session.getFrontConnection().write(session.getOkByteArray());
             session.multiStatementNextSql(multiStatementFlag);
             return;
         }
@@ -58,7 +58,7 @@ public class XAHandler extends AbstractXAHandler implements TransactionHandler {
     public void rollback() {
         if (session.getTargetCount() <= 0) {
             boolean multiStatementFlag = session.getIsMultiStatement().get();
-            session.getSource().write(session.getOkByteArray());
+            session.getFrontConnection().write(session.getOkByteArray());
             session.multiStatementNextSql(multiStatementFlag);
             return;
         }

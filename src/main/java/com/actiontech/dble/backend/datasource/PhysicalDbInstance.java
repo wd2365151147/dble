@@ -6,14 +6,17 @@
 package com.actiontech.dble.backend.datasource;
 
 import com.actiontech.dble.DbleServer;
-import com.actiontech.dble.backend.BackendConnection;
 import com.actiontech.dble.backend.heartbeat.MySQLHeartbeat;
 import com.actiontech.dble.backend.mysql.nio.handler.ConnectionHeartBeatHandler;
 import com.actiontech.dble.backend.mysql.nio.handler.ResponseHandler;
 import com.actiontech.dble.backend.pool.ConnectionPool;
-import com.actiontech.dble.backend.pool.PooledEntry;
+import com.actiontech.dble.backend.pool.ReadTimeStatusInstance;
 import com.actiontech.dble.config.model.db.DbGroupConfig;
 import com.actiontech.dble.config.model.db.DbInstanceConfig;
+import com.actiontech.dble.net.connection.BackendConnection;
+import com.actiontech.dble.net.connection.PooledConnection;
+import com.actiontech.dble.net.factory.MySQLConnectionFactory;
+import com.actiontech.dble.services.mysqlsharding.MySQLResponseService;
 import com.actiontech.dble.singleton.Scheduler;
 import com.actiontech.dble.util.StringUtil;
 import com.actiontech.dble.util.TimeUtil;
@@ -27,7 +30,7 @@ import java.util.concurrent.atomic.LongAdder;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-public abstract class PhysicalDbInstance {
+public abstract class PhysicalDbInstance implements ReadTimeStatusInstance {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PhysicalDbInstance.class);
 
@@ -62,7 +65,7 @@ public abstract class PhysicalDbInstance {
         this.heartbeat = new MySQLHeartbeat(this);
         this.readInstance = isReadNode;
         this.disabled = new AtomicBoolean(config.isDisabled());
-        this.connectionPool = new ConnectionPool(config, this);
+        this.connectionPool = new ConnectionPool(config, this,new MySQLConnectionFactory());
     }
 
     public PhysicalDbInstance(PhysicalDbInstance org) {
@@ -123,7 +126,7 @@ public abstract class PhysicalDbInstance {
                     handler.connectionError(e, attachment);
                     return;
                 }
-                con.setAttachment(attachment);
+                con.getBackendService().setAttachment(attachment);
                 handler.connectionAcquired(con);
             }
         });
@@ -132,7 +135,7 @@ public abstract class PhysicalDbInstance {
     // execute in complex executor guard by business executor
     public BackendConnection getConnection(String schema, final Object attachment) throws IOException {
         BackendConnection con = getConnection(schema, config.getPoolConfig().getConnectionTimeout());
-        con.setAttachment(attachment);
+        ((MySQLResponseService)con.getService()).setAttachment(attachment);
         return con;
     }
 
@@ -150,7 +153,7 @@ public abstract class PhysicalDbInstance {
         try {
             long timeout = hardTimeout;
             do {
-                final BackendConnection conn = this.connectionPool.borrow(schema, timeout, MILLISECONDS);
+                final BackendConnection conn = (BackendConnection)this.connectionPool.borrow(schema, timeout, MILLISECONDS);
                 if (conn == null) {
                     break; // We timed out... break and throw exception
                 }
@@ -352,7 +355,7 @@ public abstract class PhysicalDbInstance {
     }
 
     public void closeAllConnection(String reason) {
-        this.connectionPool.closeAllConnections(reason);
+        this.connectionPool.forceCloseAllConnection(reason);
     }
 
     public boolean isAlive() {
@@ -384,23 +387,23 @@ public abstract class PhysicalDbInstance {
     }
 
     public final int getActiveConnections() {
-        return connectionPool.getCount(PooledEntry.STATE_IN_USE);
+        return connectionPool.getCount(PooledConnection.STATE_IN_USE);
     }
 
     public final int getActiveConnections(String schema) {
-        return connectionPool.getCount(schema, PooledEntry.STATE_IN_USE);
+        return connectionPool.getCount(schema, PooledConnection.STATE_IN_USE);
     }
 
     public final int getIdleConnections() {
-        return connectionPool.getCount(PooledEntry.STATE_NOT_IN_USE);
+        return connectionPool.getCount(PooledConnection.STATE_NOT_IN_USE);
     }
 
     public final int getIdleConnections(String schema) {
-        return connectionPool.getCount(schema, PooledEntry.STATE_NOT_IN_USE);
+        return connectionPool.getCount(schema, PooledConnection.STATE_NOT_IN_USE);
     }
 
     public final int getTotalConnections() {
-        return connectionPool.size() - connectionPool.getCount(PooledEntry.STATE_REMOVED);
+        return connectionPool.size() - connectionPool.getCount(PooledConnection.STATE_REMOVED);
     }
 
     @Override

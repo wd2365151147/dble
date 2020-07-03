@@ -53,7 +53,7 @@ public class MySQLConnectionHandler extends BackendAsyncHandler {
     public void handle(byte[] data) {
         if (session != null) {
             if (session.isKilled()) return;
-            session.setBackendResponseTime(source);
+            //session.setBackendResponseTime(source);
         }
         if (source.isComplexQuery()) {
             offerData(data, DbleServer.getInstance().getComplexQueryExecutor());
@@ -151,7 +151,7 @@ public class MySQLConnectionHandler extends BackendAsyncHandler {
     private void handleOkPacket(byte[] data) {
         ResponseHandler respHand = responseHandler;
         if (respHand != null) {
-            respHand.okResponse(data, source);
+            //respHand.okResponse(data, source);
         }
     }
 
@@ -164,7 +164,7 @@ public class MySQLConnectionHandler extends BackendAsyncHandler {
         this.source.setRowDataFlowing(false);
         this.source.signal();
         if (respHand != null) {
-            respHand.errorResponse(data, source);
+            //respHand.errorResponse(data, source);
         } else {
             closeNoHandler();
         }
@@ -189,7 +189,7 @@ public class MySQLConnectionHandler extends BackendAsyncHandler {
         ResponseHandler respHand = responseHandler;
         this.source.setRowDataFlowing(true);
         if (respHand != null) {
-            respHand.fieldEofResponse(header, fields, null, data, false, source);
+            //respHand.fieldEofResponse(header, fields, null, data, false, source);
         } else {
             closeNoHandler();
         }
@@ -201,7 +201,7 @@ public class MySQLConnectionHandler extends BackendAsyncHandler {
     private void handleRowPacket(byte[] data) {
         ResponseHandler respHand = responseHandler;
         if (respHand != null) {
-            respHand.rowResponse(data, null, false, source);
+            //respHand.rowResponse(data, null, false, source);
         } else {
             closeNoHandler();
 
@@ -220,14 +220,14 @@ public class MySQLConnectionHandler extends BackendAsyncHandler {
      */
     private void handleRowEofPacket(byte[] data) {
         if (session != null && !source.isTesting() && this.source.getLogResponse().compareAndSet(false, true)) {
-            session.setBackendResponseEndTime(this.source);
+            //session.setBackendResponseEndTime(this.source);
         }
         this.source.setExecuting(false);
         this.source.setRowDataFlowing(false);
         this.source.getLogResponse().set(false);
         this.source.signal();
         if (responseHandler != null) {
-            responseHandler.rowEofResponse(data, false, source);
+            //responseHandler.rowEofResponse(data, false, source);
         } else {
             closeNoHandler();
         }

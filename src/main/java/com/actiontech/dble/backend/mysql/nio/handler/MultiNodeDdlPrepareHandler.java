@@ -21,6 +21,7 @@ import com.actiontech.dble.route.util.RouteResultCopy;
 import com.actiontech.dble.server.NonBlockingSession;
 import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.parser.ServerParse;
+import com.actiontech.dble.services.mysqlsharding.MySQLResponseService;
 import com.actiontech.dble.singleton.DDLTraceManager;
 import com.actiontech.dble.util.StringUtil;
 import org.slf4j.Logger;
@@ -58,7 +59,7 @@ public class MultiNodeDdlPrepareHandler extends MultiNodeHandler implements Exec
         }
 
         this.rrs = RouteResultCopy.rrCopy(rrs, ServerParse.DDL, STMT);
-        this.sessionAutocommit = session.getSource().isAutocommit();
+        this.sessionAutocommit = session.getFrontConnection().isAutocommit();
 
         this.oriRrs = rrs;
         this.handler = new MultiNodeDDLExecuteHandler(rrs, session);
@@ -91,10 +92,10 @@ public class MultiNodeDdlPrepareHandler extends MultiNodeHandler implements Exec
             }
         }
         if (sb.length() > 0) {
-            TxnLogHelper.putTxnLog(session.getSource(), sb.toString());
+            TxnLogHelper.putTxnLog(session.getFrontConnection(), sb.toString());
         }
 
-        DDLTraceManager.getInstance().updateDDLStatus(DDLTraceInfo.DDLStage.CONN_TEST_START, session.getSource());
+        DDLTraceManager.getInstance().updateDDLStatus(DDLTraceInfo.DDLStage.CONN_TEST_START, session.getFrontConnection());
 
         for (final RouteResultsetNode node : rrs.getNodes()) {
             BackendConnection conn = session.getTarget(node);
@@ -110,7 +111,7 @@ public class MultiNodeDdlPrepareHandler extends MultiNodeHandler implements Exec
         }
     }
 
-    private void innerExecute(BackendConnection conn, RouteResultsetNode node) {
+    private void innerExecute(MySQLResponseService responseService, RouteResultsetNode node) {
         if (clearIfSessionClosed()) {
             return;
         }
@@ -118,12 +119,12 @@ public class MultiNodeDdlPrepareHandler extends MultiNodeHandler implements Exec
         conn.setSession(session);
         ((MySQLConnection) conn).setTesting(true);
         ((MySQLConnection) conn).setComplexQuery(true);
-        conn.execute(node, session.getSource(), sessionAutocommit && !session.getSource().isTxStart());
+        conn.execute(node, session.getFrontConnection(), sessionAutocommit && !session.getShardingService().isTxStart());
     }
 
     @Override
     public void connectionClose(BackendConnection conn, String reason) {
-        DDLTraceManager.getInstance().updateConnectionStatus(session.getSource(),
+        DDLTraceManager.getInstance().updateConnectionStatus(session.getFrontConnection(),
                 (MySQLConnection) conn, DDLTraceInfo.DDLConnectionStatus.TEST_CONN_CLOSE);
         if (checkClosedConn(conn)) {
             return;
@@ -132,7 +133,7 @@ public class MultiNodeDdlPrepareHandler extends MultiNodeHandler implements Exec
         ErrorPacket errPacket = new ErrorPacket();
         errPacket.setPacketId(1);
         errPacket.setErrNo(ErrorCode.ER_ABORTING_CONNECTION);
-        errPacket.setMessage(StringUtil.encode(reason, session.getSource().getCharset().getResults()));
+        errPacket.setMessage(StringUtil.encode(reason, session.getFrontConnection().getCharset().getResults()));
         err = errPacket;
 
         lock.lock();
@@ -180,13 +181,13 @@ public class MultiNodeDdlPrepareHandler extends MultiNodeHandler implements Exec
 
     @Override
     public void connectionError(Throwable e, Object attachment) {
-        DDLTraceManager.getInstance().updateRouteNodeStatus(session.getSource(),
+        DDLTraceManager.getInstance().updateRouteNodeStatus(session.getFrontConnection(),
                 (RouteResultsetNode) attachment, DDLTraceInfo.DDLConnectionStatus.TEST_CONN_ERROR);
 
         ErrorPacket errPacket = new ErrorPacket();
         errPacket.setPacketId(1);
         errPacket.setErrNo(ErrorCode.ER_ABORTING_CONNECTION);
-        errPacket.setMessage(StringUtil.encode(e.toString(), session.getSource().getCharset().getResults()));
+        errPacket.setMessage(StringUtil.encode(e.toString(), session.getFrontConnection().getCharset().getResults()));
         err = errPacket;
 
         lock.lock();
@@ -202,7 +203,7 @@ public class MultiNodeDdlPrepareHandler extends MultiNodeHandler implements Exec
     public void connectionAcquired(final BackendConnection conn) {
         final RouteResultsetNode node = (RouteResultsetNode) conn.getAttachment();
         session.bindConnection(node, conn);
-        DDLTraceManager.getInstance().updateConnectionStatus(session.getSource(),
+        DDLTraceManager.getInstance().updateConnectionStatus(session.getFrontConnection(),
                 (MySQLConnection) conn, DDLTraceInfo.DDLConnectionStatus.CONN_TEST_START);
         innerExecute(conn, node);
     }
@@ -210,7 +211,7 @@ public class MultiNodeDdlPrepareHandler extends MultiNodeHandler implements Exec
 
     @Override
     public void errorResponse(byte[] data, BackendConnection conn) {
-        DDLTraceManager.getInstance().updateConnectionStatus(session.getSource(),
+        DDLTraceManager.getInstance().updateConnectionStatus(session.getFrontConnection(),
                 (MySQLConnection) conn, DDLTraceInfo.DDLConnectionStatus.CONN_TEST_RESULT_ERROR);
         ErrorPacket errPacket = new ErrorPacket();
         errPacket.read(data);
@@ -242,9 +243,9 @@ public class MultiNodeDdlPrepareHandler extends MultiNodeHandler implements Exec
 
     @Override
     public void rowEofResponse(final byte[] eof, boolean isLeft, BackendConnection conn) {
-        DDLTraceManager.getInstance().updateConnectionStatus(session.getSource(),
+        DDLTraceManager.getInstance().updateConnectionStatus(session.getFrontConnection(),
                 (MySQLConnection) conn, DDLTraceInfo.DDLConnectionStatus.CONN_TEST_SUCCESS);
-        final ServerConnection source = session.getSource();
+        final ServerConnection source = session.getFrontConnection();
         if (clearIfSessionClosed()) {
             return;
         }
@@ -274,7 +275,7 @@ public class MultiNodeDdlPrepareHandler extends MultiNodeHandler implements Exec
                         ErrorPacket errPacket = new ErrorPacket();
                         errPacket.setPacketId(++packetId);
                         errPacket.setErrNo(ErrorCode.ER_QUERY_INTERRUPTED);
-                        errPacket.setMessage(StringUtil.encode("Query was interrupted", session.getSource().getCharset().getResults()));
+                        errPacket.setMessage(StringUtil.encode("Query was interrupted", session.getFrontConnection().getCharset().getResults()));
                         handleRollbackPacket(errPacket.toBytes(), "Query was interrupted");
                     }
                 } catch (Exception e) {
@@ -312,7 +313,7 @@ public class MultiNodeDdlPrepareHandler extends MultiNodeHandler implements Exec
     }
 
     private void handleRollbackPacket(byte[] data, String reason) {
-        ServerConnection source = session.getSource();
+        ServerConnection source = session.getFrontConnection();
         boolean inTransaction = !source.isAutocommit() || source.isTxStart();
         if (!inTransaction) {
             // normal query
@@ -321,7 +322,7 @@ public class MultiNodeDdlPrepareHandler extends MultiNodeHandler implements Exec
             // Explicit distributed transaction
             source.setTxInterrupt(reason);
         }
-        session.getSource().write(data);
+        session.getFrontConnection().write(data);
     }
 
 

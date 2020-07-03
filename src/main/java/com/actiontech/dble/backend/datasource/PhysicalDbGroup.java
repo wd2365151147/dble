@@ -9,7 +9,6 @@ import com.actiontech.dble.DbleServer;
 import com.actiontech.dble.alarm.AlarmCode;
 import com.actiontech.dble.alarm.Alert;
 import com.actiontech.dble.alarm.AlertUtil;
-import com.actiontech.dble.backend.BackendConnection;
 import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
 import com.actiontech.dble.backend.mysql.nio.MySQLInstance;
 import com.actiontech.dble.backend.mysql.nio.handler.ResponseHandler;
@@ -18,6 +17,7 @@ import com.actiontech.dble.cluster.values.DbInstanceStatus;
 import com.actiontech.dble.config.helper.GetAndSyncDbInstanceKeyVariables;
 import com.actiontech.dble.config.helper.KeyVariables;
 import com.actiontech.dble.config.model.db.DbGroupConfig;
+import com.actiontech.dble.net.connection.BackendConnection;
 import com.actiontech.dble.singleton.HaConfigManager;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -105,8 +105,7 @@ public class PhysicalDbGroup {
     }
 
     PhysicalDbInstance findDbInstance(BackendConnection exitsCon) {
-        MySQLConnection con = (MySQLConnection) exitsCon;
-        PhysicalDbInstance source = con.getDbInstance();
+        PhysicalDbInstance source = (PhysicalDbInstance) exitsCon.getPoolRelated().getInstance();
         PhysicalDbInstance target = allSourceMap.get(source.getName());
         if (source == target) {
             return source;

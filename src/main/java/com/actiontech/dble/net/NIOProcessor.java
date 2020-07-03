@@ -9,7 +9,6 @@ import com.actiontech.dble.backend.BackendConnection;
 import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
 import com.actiontech.dble.backend.mysql.nio.handler.transaction.xa.stage.XAStage;
 import com.actiontech.dble.backend.mysql.xa.TxState;
-import com.actiontech.dble.backend.pool.PooledEntry;
 import com.actiontech.dble.buffer.BufferPool;
 import com.actiontech.dble.config.model.SystemConfig;
 import com.actiontech.dble.server.ServerConnection;
@@ -172,6 +171,7 @@ public final class NIOProcessor {
     }
 
     private void backendCheck() {
+        /*
         long sqlTimeout = SystemConfig.getInstance().getSqlExecuteTimeout() * 1000L;
         Iterator<Entry<Long, BackendConnection>> it = backends.entrySet().iterator();
         while (it.hasNext()) {
@@ -210,6 +210,7 @@ public final class NIOProcessor {
                 }
             }
         }
+        */
     }
 
     public void removeConnection(AbstractConnection con) {

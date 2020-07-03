@@ -38,7 +38,7 @@ public class CommitStage implements TransactionStage {
         if (isFail) {
             session.setFinishedCommitTime();
             session.setResponseTime(false);
-            session.getSource().write(sendData);
+            session.getFrontConnection().write(sendData);
         } else if (handler != null) {
             // continue to execute sql
             handler.next();
@@ -51,7 +51,7 @@ public class CommitStage implements TransactionStage {
             session.setFinishedCommitTime();
             session.setResponseTime(true);
             boolean multiStatementFlag = session.getIsMultiStatement().get();
-            session.getSource().write(sendData);
+            session.getFrontConnection().write(sendData);
             session.multiStatementNextSql(multiStatementFlag);
         }
         session.clearSavepoint();

@@ -13,6 +13,7 @@ import com.actiontech.dble.backend.mysql.xa.recovery.impl.KVStoreRepository;
 import com.actiontech.dble.config.model.ClusterConfig;
 import com.actiontech.dble.config.model.SystemConfig;
 import com.actiontech.dble.route.RouteResultsetNode;
+import com.actiontech.dble.services.mysqlsharding.MySQLResponseService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,13 +74,13 @@ public final class XAStateLog {
         return true;
     }
 
-    public static void saveXARecoveryLog(String xaTxId, MySQLConnection mysqlCon) {
-        updateXARecoveryLog(xaTxId, mysqlCon, mysqlCon.getXaStatus());
+    public static void saveXARecoveryLog(String xaTxId, MySQLResponseService service) {
+        updateXARecoveryLog(xaTxId, service, service.getXaStatus());
     }
 
-    private static void updateXARecoveryLog(String xaTxId, MySQLConnection mysqlCon, TxState txState) {
-        long expires = ((RouteResultsetNode) mysqlCon.getAttachment()).getMultiplexNum().longValue();
-        updateXARecoveryLog(xaTxId, mysqlCon.getHost(), mysqlCon.getPort(), mysqlCon.getSchema(), expires, txState);
+    private static void updateXARecoveryLog(String xaTxId, MySQLResponseService service, TxState txState) {
+        long expires = ((RouteResultsetNode) service.getAttachment()).getMultiplexNum().longValue();
+        updateXARecoveryLog(xaTxId, service.getConnection().getHost(), service.getConnection().getPort(), service.getConnection().getSchema(), expires, txState);
     }
 
     public static void updateXARecoveryLog(String xaTxId, String host, int port, String schema, long expires, TxState txState) {

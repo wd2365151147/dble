@@ -4,8 +4,8 @@ import com.actiontech.dble.DbleServer;
 import com.actiontech.dble.backend.mysql.nio.handler.transaction.normal.handler.NormalTransactionHandler;
 import com.actiontech.dble.backend.mysql.nio.handler.transaction.xa.handler.AbstractXAHandler;
 import com.actiontech.dble.backend.mysql.nio.handler.transaction.xa.handler.XAHandler;
+import com.actiontech.dble.net.connection.AbstractConnection;
 import com.actiontech.dble.server.NonBlockingSession;
-import com.actiontech.dble.server.ServerConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +27,7 @@ public class TransactionHandlerManager {
         return xaTxId;
     }
 
-    public void setXaTxEnabled(boolean xaTXEnabled, ServerConnection source) {
+    public void setXaTxEnabled(boolean xaTXEnabled, AbstractConnection source) {
         if (xaTXEnabled && this.xaTxId == null) {
             LOGGER.info("XA Transaction enabled ,con " + source);
             xaTxId = DbleServer.getInstance().genXaTxId();

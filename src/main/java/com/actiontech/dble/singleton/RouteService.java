@@ -14,6 +14,7 @@ import com.actiontech.dble.route.handler.HintHandlerFactory;
 import com.actiontech.dble.route.handler.HintSQLHandler;
 import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.parser.ServerParse;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,12 +32,12 @@ public final class RouteService {
     }
 
     public RouteResultset route(SchemaConfig schema,
-                                int sqlType, String stmt, ServerConnection sc) throws SQLException {
-        return this.route(schema, sqlType, stmt, sc, false);
+                                int sqlType, String stmt, MySQLShardingService service) throws SQLException {
+        return this.route(schema, sqlType, stmt, service, false);
     }
 
     public RouteResultset route(SchemaConfig schema,
-                                int sqlType, String stmt, ServerConnection sc, boolean isExplain)
+                                int sqlType, String stmt, MySQLShardingService service, boolean isExplain)
             throws SQLException {
         RouteResultset rrs;
         String cacheKey = null;
@@ -45,10 +46,10 @@ public final class RouteService {
          *  SELECT  SQL,  not cached in debug mode
          */
         if (sqlType == ServerParse.SELECT && !LOGGER.isDebugEnabled() && CacheService.getSqlRouteCache() != null) {
-            cacheKey = (schema == null ? "NULL" : schema.getName()) + "_" + sc.getUser() + "_" + stmt;
+            cacheKey = (schema == null ? "NULL" : schema.getName()) + "_" + service.getUser() + "_" + stmt;
             rrs = (RouteResultset) CacheService.getSqlRouteCache().get(cacheKey);
             if (rrs != null) {
-                sc.getSession2().endParse();
+                service.getSession2().endParse();
                 return rrs;
             }
         }
@@ -79,11 +80,11 @@ public final class RouteService {
                     if (hintHandler != null) {
                         if (hintHandler instanceof HintSQLHandler) {
                             int hintSqlType = ServerParse.parse(hintSql) & 0xff;
-                            rrs = hintHandler.route(schema, sqlType, realSQL, sc, hintSql, hintSqlType, hintMap);
+                            rrs = hintHandler.route(schema, sqlType, realSQL, service, hintSql, hintSqlType, hintMap);
                             // HintSQLHandler will always send to master
                             rrs.setRunOnSlave(false);
                         } else {
-                            rrs = hintHandler.route(schema, sqlType, realSQL, sc, hintSql, sqlType, hintMap);
+                            rrs = hintHandler.route(schema, sqlType, realSQL, service, hintSql, sqlType, hintMap);
                         }
                     } else {
                         String msg = "Not supported hint sql type : " + hintType;
@@ -97,15 +98,15 @@ public final class RouteService {
                 }
             } else {
                 stmt = stmt.trim();
-                rrs = RouteStrategyFactory.getRouteStrategy().route(schema, sqlType, stmt, sc, isExplain);
+                rrs = RouteStrategyFactory.getRouteStrategy().route(schema, sqlType, stmt, service, isExplain);
             }
         } else {
             stmt = stmt.trim();
-            rrs = RouteStrategyFactory.getRouteStrategy().route(schema, sqlType, stmt, sc, isExplain);
+            rrs = RouteStrategyFactory.getRouteStrategy().route(schema, sqlType, stmt, service, isExplain);
         }
 
         if (rrs != null && sqlType == ServerParse.SELECT && rrs.isSqlRouteCacheAble() && !LOGGER.isDebugEnabled() && CacheService.getSqlRouteCache() != null &&
-                sc.getSession2().getRemingSql() == null) {
+                service.getSession2().getRemingSql() == null) {
             CacheService.getSqlRouteCache().putIfAbsent(cacheKey, rrs);
         }
         return rrs;

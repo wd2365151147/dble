@@ -39,7 +39,7 @@ public abstract class BackendAsyncHandler implements NIOHandler {
 
     private void pushTask() {
         if (isHandling.compareAndSet(false, true)) {
-            DbleServer.getInstance().getBackHandlerQueue().offer(this);
+            //DbleServer.getInstance().getBackHandlerQueue().offer(this);
         }
     }
 

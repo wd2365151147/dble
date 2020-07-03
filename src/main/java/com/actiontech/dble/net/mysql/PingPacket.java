@@ -5,6 +5,8 @@
 */
 package com.actiontech.dble.net.mysql;
 
+import com.actiontech.dble.net.service.AbstractService;
+
 /**
  * @author mycat
  */
@@ -19,6 +21,11 @@ public class PingPacket extends MySQLPacket {
     @Override
     protected String getPacketInfo() {
         return "MySQL Ping Packet";
+    }
+
+
+    public static void response(AbstractService service) {
+        service.write(OkPacket.OK);
     }
 
 }

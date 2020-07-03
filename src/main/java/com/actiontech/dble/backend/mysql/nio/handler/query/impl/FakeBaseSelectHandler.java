@@ -61,7 +61,7 @@ public class FakeBaseSelectHandler extends BaseDMLHandler {
         if (selectList.size() > 1) {
             RowDataPacket row = new RowDataPacket(fieldCount);
             for (Item i : selectList) {
-                List<RowDataPacket> rows = ((ItemFuncInner) i).getRows(session.getSource());
+                List<RowDataPacket> rows = ((ItemFuncInner) i).getRows(session.getFrontConnection());
                 if (rows.size() > 1) {
                     return null;
                 } else {
@@ -73,7 +73,7 @@ public class FakeBaseSelectHandler extends BaseDMLHandler {
             return result;
         } else {
             Item i = selectList.get(0);
-            List<RowDataPacket> rows = ((ItemFuncInner) i).getRows(session.getSource());
+            List<RowDataPacket> rows = ((ItemFuncInner) i).getRows(session.getFrontConnection());
             return rows;
         }
     }

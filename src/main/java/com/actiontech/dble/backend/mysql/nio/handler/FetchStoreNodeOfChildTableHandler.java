@@ -89,9 +89,9 @@ public class FetchStoreNodeOfChildTableHandler implements ResponseHandler {
                     conn.setResponseHandler(this);
                     conn.setSession(session);
                     ((MySQLConnection) conn).setComplexQuery(true);
-                    conn.execute(node, session.getSource(), false);
+                    conn.execute(node, session.getFrontConnection(), false);
                 } else {
-                    mysqlDN.getConnection(mysqlDN.getDatabase(), session.getSource().isTxStart(), session.getSource().isAutocommit(), node, this, node);
+                    mysqlDN.getConnection(mysqlDN.getDatabase(), session.getFrontConnection().isTxStart(), session.getFrontConnection().isAutocommit(), node, this, node);
                 }
             } catch (Exception e) {
                 LOGGER.info("get connection err " + e);

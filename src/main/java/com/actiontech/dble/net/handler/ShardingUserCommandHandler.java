@@ -26,6 +26,7 @@ public class ShardingUserCommandHandler extends FrontendCommandHandler {
     }
 
     protected void handleDataByPacket(byte[] data) {
+        /*
         ServerConnection sc = (ServerConnection) source;
         if (sc.getLoadDataInfileHandler() != null && sc.getLoadDataInfileHandler().isStartLoadData()) {
             MySQLMessage mm = new MySQLMessage(data);
@@ -52,10 +53,10 @@ public class ShardingUserCommandHandler extends FrontendCommandHandler {
         }
         sc.getSession2().resetMultiStatementStatus();
 
-        DbleServer.getInstance().getFrontHandlerQueue().offer(this);
+        DbleServer.getInstance().getFrontHandlerQueue().offer(this);*/
     }
     protected void handleData(byte[] data) {
-        ServerConnection sc = (ServerConnection) source;
+       /* ServerConnection sc = (ServerConnection) source;
         sc.startProcess();
 
         if (isAuthSwitch.compareAndSet(true, false)) {
@@ -116,6 +117,6 @@ public class ShardingUserCommandHandler extends FrontendCommandHandler {
             default:
                 commands.doOther();
                 sc.writeErrMessage(ErrorCode.ER_UNKNOWN_COM_ERROR, "Unknown command");
-        }
+        }*/
     }
 }

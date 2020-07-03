@@ -54,7 +54,7 @@ public class MysqlDropViewHandler implements ResponseHandler {
         } else {
             // create new connection
             ShardingNode dn = DbleServer.getInstance().getConfig().getShardingNodes().get(node.getName());
-            dn.getConnection(dn.getDatabase(), session.getSource().isTxStart(), session.getSource().isAutocommit(), node, this, node);
+            dn.getConnection(dn.getDatabase(), session.getFrontConnection().isTxStart(), session.getFrontConnection().isAutocommit(), node, this, node);
         }
     }
 
@@ -65,7 +65,7 @@ public class MysqlDropViewHandler implements ResponseHandler {
     private void innerExecute(BackendConnection conn, RouteResultsetNode node) {
         conn.setResponseHandler(this);
         conn.setSession(session);
-        conn.execute(node, session.getSource(), session.getSource().isAutocommit());
+        conn.execute(node, session.getFrontConnection(), session.getFrontConnection().isAutocommit());
     }
 
     @Override
@@ -82,7 +82,7 @@ public class MysqlDropViewHandler implements ResponseHandler {
         errPacket.setPacketId(++packetId);
         errPacket.setErrNo(ErrorCode.ER_DB_INSTANCE_ABORTING_CONNECTION);
         String errMsg = "can't connect to shardingNode[" + rrn.getName() + "], due to " + e.getMessage();
-        errPacket.setMessage(StringUtil.encode(errMsg, session.getSource().getCharset().getResults()));
+        errPacket.setMessage(StringUtil.encode(errMsg, session.getFrontConnection().getCharset().getResults()));
         LOGGER.warn(errMsg);
         backConnectionErr(errPacket, null, false);
     }
@@ -109,7 +109,7 @@ public class MysqlDropViewHandler implements ResponseHandler {
                 } catch (SQLNonTransientException e) {
                     ErrorPacket errPkg = new ErrorPacket();
                     errPkg.setPacketId(++packetId);
-                    errPkg.setMessage(StringUtil.encode(e.getMessage(), session.getSource().getCharset().getResults()));
+                    errPkg.setMessage(StringUtil.encode(e.getMessage(), session.getFrontConnection().getCharset().getResults()));
                     backConnectionErr(errPkg, conn, conn.syncAndExecute());
                     return;
                 }
@@ -119,19 +119,19 @@ public class MysqlDropViewHandler implements ResponseHandler {
             OkPacket ok = new OkPacket();
             ok.read(data);
             ok.setPacketId(++packetId); // OK_PACKET
-            ok.setServerStatus(session.getSource().isAutocommit() ? 2 : 1);
+            ok.setServerStatus(session.getFrontConnection().isAutocommit() ? 2 : 1);
             session.setBackendResponseEndTime((MySQLConnection) conn);
             session.releaseConnectionIfSafe(conn, false);
             session.setResponseTime(true);
             session.multiStatementPacket(ok, packetId);
             boolean multiStatementFlag = session.getIsMultiStatement().get();
-            ok.write(session.getSource());
+            ok.write(session.getFrontConnection());
             session.multiStatementNextSql(multiStatementFlag);
         }
     }
 
     private void backConnectionErr(ErrorPacket errPkg, BackendConnection conn, boolean syncFinished) {
-        ServerConnection source = session.getSource();
+        ServerConnection source = session.getFrontConnection();
         UserName errUser = source.getUser();
         String errHost = source.getHost();
         int errPort = source.getLocalPort();

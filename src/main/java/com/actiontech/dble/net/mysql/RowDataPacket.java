@@ -11,6 +11,7 @@ import com.actiontech.dble.backend.mysql.MySQLMessage;
 import com.actiontech.dble.backend.mysql.nio.handler.util.RowDataComparator;
 import com.actiontech.dble.buffer.BufferPool;
 import com.actiontech.dble.net.FrontendConnection;
+import com.actiontech.dble.net.service.AbstractService;
 import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.singleton.BufferPoolManager;
 
@@ -88,13 +89,14 @@ public class RowDataPacket extends MySQLPacket {
     }
 
     @Override
-    public ByteBuffer write(ByteBuffer bb, FrontendConnection c,
+    public ByteBuffer write(ByteBuffer bb, AbstractService c,
                             boolean writeSocketIfFull) {
         int size = calcPacketSize();
         int totalSize = size + PACKET_HEADER_SIZE;
         boolean isBigPackage = size >= MySQLPacket.MAX_PACKET_SIZE;
         if (isBigPackage) {
-            c.writePart(bb);
+            ///todo let the service to deal with the big packet in the mysql
+            /*c.writePart(bb);
             BufferPool bufferPool = c.getProcessor().getBufferPool();
             ByteBuffer tmpBuffer = bufferPool.allocate(totalSize);
             BufferUtil.writeUB3(tmpBuffer, calcPacketSize());
@@ -103,7 +105,8 @@ public class RowDataPacket extends MySQLPacket {
             byte[] array = tmpBuffer.array();
             bufferPool.recycle(tmpBuffer);
             ByteBuffer newBuffer = bufferPool.allocate(array.length);
-            return c.writeBigPackageToBuffer(array, newBuffer, packetId);
+            return c.writeBigPackageToBuffer(array, newBuffer, packetId);*/
+            return null;
         } else {
             bb = c.checkWriteBuffer(bb, totalSize, writeSocketIfFull);
             BufferUtil.writeUB3(bb, calcPacketSize());
@@ -123,9 +126,9 @@ public class RowDataPacket extends MySQLPacket {
                     bb = c.writeToBuffer(fv, bb);
                 }
             }
-            if (c instanceof ServerConnection) {
+            /*if (c instanceof ServerConnection) {
                 ((ServerConnection) c).getSession2().getPacketId().set(packetId);
-            }
+            }*/
             return bb;
         }
     }

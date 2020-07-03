@@ -20,15 +20,22 @@ import com.actiontech.dble.config.model.sharding.SchemaConfig;
 import com.actiontech.dble.config.model.sharding.table.BaseTableConfig;
 import com.actiontech.dble.config.util.ConfigUtil;
 import com.actiontech.dble.log.transaction.TxnLogProcessor;
-import com.actiontech.dble.manager.ManagerConnectionFactory;
 import com.actiontech.dble.meta.ProxyMetaManager;
-import com.actiontech.dble.net.*;
-import com.actiontech.dble.net.handler.*;
+import com.actiontech.dble.net.IOProcessor;
+import com.actiontech.dble.net.SocketAcceptor;
+import com.actiontech.dble.net.SocketConnector;
+import com.actiontech.dble.net.executor.FrontEndHandlerRunnable;
+import com.actiontech.dble.net.executor.WriteToBackendRunnable;
+import com.actiontech.dble.net.impl.nio.NIOAcceptor;
+import com.actiontech.dble.net.impl.nio.NIOConnector;
+import com.actiontech.dble.net.impl.nio.NIOReactorPool;
 import com.actiontech.dble.net.mysql.WriteToBackendTask;
+import com.actiontech.dble.net.service.ServiceTask;
 import com.actiontech.dble.server.ServerConnectionFactory;
 import com.actiontech.dble.server.status.SlowQueryLog;
 import com.actiontech.dble.server.variables.SystemVariables;
 import com.actiontech.dble.server.variables.VarsExtractorHandler;
+import com.actiontech.dble.services.factorys.ManagerConnectionFactory;
 import com.actiontech.dble.singleton.*;
 import com.actiontech.dble.statistic.stat.ThreadWorkUsage;
 import com.actiontech.dble.util.ExecutorUtil;
@@ -78,8 +85,8 @@ public final class DbleServer {
     //dble server on/offline flag
     private final AtomicBoolean isOnline = new AtomicBoolean(true);
     private long startupTime;
-    private NIOProcessor[] frontProcessors;
-    private NIOProcessor[] backendProcessors;
+    private IOProcessor[] frontProcessors;
+    private IOProcessor[] backendProcessors;
     private SocketConnector connector;
     private ExecutorService businessExecutor;
     private ExecutorService backendBusinessExecutor;
@@ -87,11 +94,18 @@ public final class DbleServer {
     private ExecutorService complexQueryExecutor;
     private ExecutorService timerExecutor;
     private Map<String, ThreadWorkUsage> threadUsedMap = new ConcurrentHashMap<>();
-    private BlockingQueue<FrontendCommandHandler> frontHandlerQueue;
+/*    private BlockingQueue<FrontendCommandHandler> frontHandlerQueue;
     private BlockingQueue<List<WriteToBackendTask>> writeToBackendQueue;
     private Queue<FrontendCommandHandler> concurrentFrontHandlerQueue;
-    private Queue<BackendAsyncHandler> concurrentBackHandlerQueue;
+    private Queue<BackendAsyncHandler> concurrentBackHandlerQueue;*/
+
+
+    private BlockingQueue<ServiceTask> frontHandlerQueue;
+    private BlockingQueue<List<WriteToBackendTask>> writeToBackendQueue;
+    private Queue<ServiceTask> frontPriorityQueue;
+
     private volatile boolean startup = false;
+
     private DbleServer() {
     }
 
@@ -131,8 +145,8 @@ public final class DbleServer {
         // startup processors
         int frontProcessorCount = SystemConfig.getInstance().getProcessors();
         int backendProcessorCount = SystemConfig.getInstance().getBackendProcessors();
-        frontProcessors = new NIOProcessor[frontProcessorCount];
-        backendProcessors = new NIOProcessor[backendProcessorCount];
+        frontProcessors = new IOProcessor[frontProcessorCount];
+        backendProcessors = new IOProcessor[backendProcessorCount];
 
 
         businessExecutor = ExecutorUtil.createFixed("BusinessExecutor", SystemConfig.getInstance().getProcessorExecutor());
@@ -147,10 +161,10 @@ public final class DbleServer {
 
 
         for (int i = 0; i < frontProcessorCount; i++) {
-            frontProcessors[i] = new NIOProcessor("frontProcessor" + i, BufferPoolManager.getBufferPool());
+            frontProcessors[i] = new IOProcessor("frontProcessor" + i, BufferPoolManager.getBufferPool());
         }
         for (int i = 0; i < backendProcessorCount; i++) {
-            backendProcessors[i] = new NIOProcessor("backendProcessor" + i, BufferPoolManager.getBufferPool());
+            backendProcessors[i] = new IOProcessor("backendProcessor" + i, BufferPoolManager.getBufferPool());
         }
 
         if (SystemConfig.getInstance().getEnableSlowLog() == 1) {
@@ -159,22 +173,22 @@ public final class DbleServer {
 
         LOGGER.info("==============================Connection  Connector&Acceptor init start===========================");
         // startup manager
-        SocketAcceptor manager;
-        SocketAcceptor server;
+        SocketAcceptor manager = null;
+        SocketAcceptor server = null;
 
         aio = (SystemConfig.getInstance().getUsingAIO() == 1);
         if (aio) {
-            int processorCount = frontProcessorCount + backendProcessorCount;
+            /*int processorCount = frontProcessorCount + backendProcessorCount;
             LOGGER.info("using aio network handler ");
             asyncChannelGroups = new AsynchronousChannelGroup[processorCount];
             initAioProcessor(processorCount);
 
             connector = new AIOConnector();
-            manager = new AIOAcceptor(NAME + "Manager", SystemConfig.getInstance().getBindIp(),
-                    SystemConfig.getInstance().getManagerPort(), 100, new ManagerConnectionFactory(), this.asyncChannelGroups[0]);
+           *//* manager = new AIOAcceptor(NAME + "Manager", SystemConfig.getInstance().getBindIp(),
+                    SystemConfig.getInstance().getManagerPort(), 100, new ManagerConnectionFactory(), this.asyncChannelGroups[0]);*//*
             server = new AIOAcceptor(NAME + "Server", SystemConfig.getInstance().getBindIp(),
                     SystemConfig.getInstance().getServerPort(), SystemConfig.getInstance().getServerBacklog(), new ServerConnectionFactory(), this.asyncChannelGroups[0]);
-
+*/
         } else {
             NIOReactorPool frontReactorPool = new NIOReactorPool(
                     DirectByteBufferPool.LOCAL_BUF_THREAD_PREX + "NIO_REACTOR_FRONT",
@@ -268,21 +282,10 @@ public final class DbleServer {
     }
 
     private void initTaskQueue() {
-        if (SystemConfig.getInstance().getUsePerformanceMode() == 1) {
-            concurrentFrontHandlerQueue = new ConcurrentLinkedQueue<>();
-            for (int i = 0; i < SystemConfig.getInstance().getProcessorExecutor(); i++) {
-                businessExecutor.execute(new ConcurrentFrontEndHandlerRunnable(concurrentFrontHandlerQueue));
-            }
-
-            concurrentBackHandlerQueue = new ConcurrentLinkedQueue<>();
-            for (int i = 0; i < SystemConfig.getInstance().getBackendProcessorExecutor(); i++) {
-                backendBusinessExecutor.execute(new ConcurrentBackEndHandlerRunnable(concurrentBackHandlerQueue));
-            }
-        } else {
-            frontHandlerQueue = new LinkedBlockingQueue<>();
-            for (int i = 0; i < SystemConfig.getInstance().getProcessorExecutor(); i++) {
-                businessExecutor.execute(new FrontEndHandlerRunnable(frontHandlerQueue));
-            }
+        frontPriorityQueue = new ConcurrentLinkedQueue<ServiceTask>();
+        frontHandlerQueue = new LinkedBlockingQueue<ServiceTask>();
+        for (int i = 0; i < SystemConfig.getInstance().getProcessorExecutor(); i++) {
+            businessExecutor.execute(new FrontEndHandlerRunnable(frontHandlerQueue, frontPriorityQueue));
         }
 
         writeToBackendQueue = new LinkedBlockingQueue<>();
@@ -303,7 +306,7 @@ public final class DbleServer {
         systemVariables = sys;
     }
 
-    public NIOProcessor nextFrontProcessor() {
+    public IOProcessor nextFrontProcessor() {
         int i = ++nextFrontProcessor;
         if (i >= frontProcessors.length) {
             i = nextFrontProcessor = 0;
@@ -311,7 +314,7 @@ public final class DbleServer {
         return frontProcessors[i];
     }
 
-    public NIOProcessor nextBackendProcessor() {
+    public IOProcessor nextBackendProcessor() {
         int i = ++nextBackendProcessor;
         if (i >= backendProcessors.length) {
             i = nextBackendProcessor = 0;
@@ -327,12 +330,9 @@ public final class DbleServer {
         return threadUsedMap;
     }
 
-    public Queue<FrontendCommandHandler> getFrontHandlerQueue() {
-        if (SystemConfig.getInstance().getUsePerformanceMode() == 1) {
-            return concurrentFrontHandlerQueue;
-        } else {
-            return frontHandlerQueue;
-        }
+
+    public Queue<ServiceTask> getFrontHandlerQueue() {
+        return frontHandlerQueue;
     }
 
 
@@ -345,7 +345,7 @@ public final class DbleServer {
                     @Override
                     public void run() {
                         try {
-                            for (NIOProcessor p : backendProcessors) {
+                            for (IOProcessor p : backendProcessors) {
                                 p.checkBackendCons();
                             }
                         } catch (Exception e) {
@@ -357,7 +357,7 @@ public final class DbleServer {
                     @Override
                     public void run() {
                         try {
-                            for (NIOProcessor p : frontProcessors) {
+                            for (IOProcessor p : frontProcessors) {
                                 p.checkFrontCons();
                             }
                         } catch (Exception e) {
@@ -583,6 +583,9 @@ public final class DbleServer {
         return timerExecutor;
     }
 
+    public Queue<ServiceTask> getFrontPriorityQueue() {
+        return frontPriorityQueue;
+    }
 
     public ExecutorService getComplexQueryExecutor() {
         return complexQueryExecutor;
@@ -601,16 +604,11 @@ public final class DbleServer {
         return config;
     }
 
-
-    public Queue<BackendAsyncHandler> getBackHandlerQueue() {
-        return concurrentBackHandlerQueue;
-    }
-
-    public NIOProcessor[] getFrontProcessors() {
+    public IOProcessor[] getFrontProcessors() {
         return frontProcessors;
     }
 
-    public NIOProcessor[] getBackendProcessors() {
+    public IOProcessor[] getBackendProcessors() {
         return backendProcessors;
     }
 

@@ -1,12 +1,10 @@
 package com.actiontech.dble.backend.pool;
 
-import com.actiontech.dble.backend.BackendConnection;
-import com.actiontech.dble.backend.datasource.PhysicalDbInstance;
-import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
-import com.actiontech.dble.backend.mysql.nio.MySQLConnectionListener;
-import com.actiontech.dble.backend.mysql.nio.handler.ConnectionHeartBeatHandler;
 import com.actiontech.dble.config.model.db.DbInstanceConfig;
-import com.actiontech.dble.net.NIOProcessor;
+import com.actiontech.dble.config.model.db.PoolConfig;
+import com.actiontech.dble.net.IOProcessor;
+import com.actiontech.dble.net.connection.PooledConnection;
+import com.actiontech.dble.net.factory.PooledConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,16 +16,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.actiontech.dble.backend.mysql.nio.MySQLConnection.*;
+import static com.actiontech.dble.net.connection.PooledConnection.*;
 
 
-public class ConnectionPool extends PoolBase implements MySQLConnectionListener {
+public class ConnectionPool extends PoolBase implements PooledConnectionListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ConnectionPool.class);
 
     private final QueuedSequenceSynchronizer synchronizer;
     private final AtomicInteger waiters;
-    private final CopyOnWriteArrayList<BackendConnection> allConnections;
+    private final CopyOnWriteArrayList<PooledConnection> allConnections;
     private final AtomicInteger totalConnections = new AtomicInteger();
 
     // evictor
@@ -37,8 +35,8 @@ public class ConnectionPool extends PoolBase implements MySQLConnectionListener 
     private final AtomicBoolean isClosed = new AtomicBoolean();
     private final PoolConfig poolConfig;
 
-    public ConnectionPool(final DbInstanceConfig config, final PhysicalDbInstance instance) {
-        super(config, instance);
+    public ConnectionPool(final DbInstanceConfig config, final ReadTimeStatusInstance instance, final PooledConnectionFactory factory) {
+        super(config, instance, factory);
 
         // save the current TCCL (if any) to be used later by the evictor Thread
         final ClassLoader cl = Thread.currentThread().getContextClassLoader();
@@ -54,23 +52,23 @@ public class ConnectionPool extends PoolBase implements MySQLConnectionListener 
         this.poolConfig = config.getPoolConfig();
     }
 
-    public BackendConnection borrow(final String schema, long timeout, final TimeUnit timeUnit) throws InterruptedException {
+    public PooledConnection borrow(final String schema, long timeout, final TimeUnit timeUnit) throws InterruptedException {
 
         timeout = timeUnit.toNanos(timeout);
         final long startScan = System.nanoTime();
         final long originTimeout = timeout;
-        BackendConnection createEntry = null;
+        PooledConnection createEntry = null;
         long startSeq;
         waiters.incrementAndGet();
         try {
             do {
                 do {
                     startSeq = synchronizer.currentSequence();
-                    for (BackendConnection entry : allConnections) {
+                    for (PooledConnection entry : allConnections) {
                         if (entry.compareAndSet(STATE_NOT_IN_USE, STATE_IN_USE)) {
                             // if we might have stolen another thread's new connection, restart the add...
                             if (waiters.get() > 1 && createEntry == null) {
-                                newPooledEntry(schema);
+                                newPooledConnection(schema);
                             }
                             return entry;
                         }
@@ -79,7 +77,7 @@ public class ConnectionPool extends PoolBase implements MySQLConnectionListener 
                 } while (startSeq < synchronizer.currentSequence());
 
                 if (createEntry == null || createEntry.getState() != INITIAL) {
-                    createEntry = newPooledEntry(schema);
+                    createEntry = newPooledConnection(schema);
                 }
 
                 timeout = originTimeout - (System.nanoTime() - startScan);
@@ -97,13 +95,13 @@ public class ConnectionPool extends PoolBase implements MySQLConnectionListener 
      * @param schema Key associated with new pooled object
      * @return The new, wrapped pooled object
      */
-    private BackendConnection newPooledEntry(final String schema) {
+    private PooledConnection newPooledConnection(final String schema) {
         if (instance.isDisabled() || isClosed.get()) {
             return null;
         }
 
         if (totalConnections.incrementAndGet() <= config.getMaxCon()) {
-            final BackendConnection conn = newConnection(schema, ConnectionPool.this);
+            final PooledConnection conn = newConnection(schema, ConnectionPool.this);
             if (conn != null) {
                 return conn;
             }
@@ -113,11 +111,9 @@ public class ConnectionPool extends PoolBase implements MySQLConnectionListener 
     }
 
 
-    public void release(final BackendConnection conn) {
+    public void release(final PooledConnection conn) {
         if (poolConfig.getTestOnReturn()) {
-            ConnectionHeartBeatHandler heartBeatHandler = new ConnectionHeartBeatHandler(conn, false, this);
-            heartBeatHandler.ping(poolConfig.getConnectionHeartbeatTimeout());
-            return;
+            conn.synchronousTest();
         }
 
         conn.lazySet(STATE_NOT_IN_USE);
@@ -132,8 +128,8 @@ public class ConnectionPool extends PoolBase implements MySQLConnectionListener 
             LOGGER.debug("need add {}", connectionsToAdd);
         }
         for (int i = 0; i < connectionsToAdd; i++) {
-            // newPooledEntry(schemas[i % schemas.length]);
-            newPooledEntry(null);
+            // newPooledConnection(schemas[i % schemas.length]);
+            newPooledConnection(null);
         }
     }
 
@@ -153,38 +149,35 @@ public class ConnectionPool extends PoolBase implements MySQLConnectionListener 
     }
 
     @Override
-    public void onCreateSuccess(BackendConnection conn) {
-        conn.setDbInstance(instance);
+    public void onCreateSuccess(PooledConnection conn) {
+        conn.setPoolRelated(this);
         allConnections.add(conn);
         if (poolConfig.getTestOnCreate()) {
-            ConnectionHeartBeatHandler heartBeatHandler = new ConnectionHeartBeatHandler(conn, false, this);
-            heartBeatHandler.ping(poolConfig.getConnectionHeartbeatTimeout());
-            return;
+            conn.synchronousTest();
         }
-
         conn.lazySet(STATE_NOT_IN_USE);
         synchronizer.signal();
     }
 
     @Override
-    public void onCreateFail(BackendConnection conn, Throwable e) {
+    public void onCreateFail(PooledConnection conn, Throwable e) {
         LOGGER.warn("create connection fail " + e.getMessage());
         totalConnections.decrementAndGet();
         // conn can be null if newChannel crashed (eg SocketException("too many open files"))
         if (conn != null) {
-            conn.closeWithoutRsp("create fail");
+            conn.businessClose("create fail");
         }
     }
 
     @Override
-    public void onHeartbeatSuccess(BackendConnection conn) {
+    public void onHeartbeatSuccess(PooledConnection conn) {
         conn.lazySet(STATE_NOT_IN_USE);
         synchronizer.signal();
     }
 
     public int getCount(final int... states) {
         int count = 0;
-        for (final BackendConnection conn : allConnections) {
+        for (final PooledConnection conn : allConnections) {
             boolean allRight = true;
             for (int state : states) {
                 if (conn.getState() != state) {
@@ -201,7 +194,7 @@ public class ConnectionPool extends PoolBase implements MySQLConnectionListener 
 
     public int getCount(String schema, final int... states) {
         int count = 0;
-        for (final BackendConnection conn : allConnections) {
+        for (final PooledConnection conn : allConnections) {
             if (!schema.equals(conn.getSchema())) {
                 continue;
             }
@@ -223,7 +216,11 @@ public class ConnectionPool extends PoolBase implements MySQLConnectionListener 
         return allConnections.size();
     }
 
-    public void close(final BackendConnection conn) {
+    public boolean isFromSlave() {
+        return !config.isPrimary();
+    }
+
+    public void close(final PooledConnection conn) {
         if (remove(conn)) {
             final int tc = totalConnections.decrementAndGet();
             if (tc < 0) {
@@ -232,49 +229,49 @@ public class ConnectionPool extends PoolBase implements MySQLConnectionListener 
         }
     }
 
-    private boolean remove(final BackendConnection pooledEntry) {
-        //        if (!pooledEntry.compareAndSet(STATE_IN_USE, STATE_REMOVED) && !pooledEntry.compareAndSet(STATE_RESERVED, STATE_REMOVED) &&
-        //                !pooledEntry.compareAndSet(STATE_HEARTBEAT, STATE_REMOVED) && !isClosed.get()) {
-        //            LOGGER.warn("Attempt to remove an object that was not borrowed or reserved: {}", pooledEntry);
-        //            return false;
-        //        }
+    private boolean remove(final PooledConnection PooledConnection) {
+        if (!PooledConnection.compareAndSet(STATE_IN_USE, STATE_REMOVED) && !PooledConnection.compareAndSet(STATE_RESERVED, STATE_REMOVED) &&
+                !PooledConnection.compareAndSet(STATE_HEARTBEAT, STATE_REMOVED) && !isClosed.get()) {
+            LOGGER.warn("Attempt to remove an object that was not borrowed or reserved: {}", PooledConnection);
+            return false;
+        }
 
-        final boolean removed = allConnections.remove(pooledEntry);
+        final boolean removed = allConnections.remove(PooledConnection);
         if (!removed) {
-            LOGGER.warn("Attempt to remove an object from the bag that does not exist: {}", pooledEntry);
+            LOGGER.warn("Attempt to remove an object from the bag that does not exist: {}", PooledConnection);
         }
 
         // synchronizer.signal();
         return removed;
     }
 
-    /**
-     * Closes the keyed object pool. Once the pool is closed
-     */
-    public void closeAllConnections(final String closureReason) {
-        closeAllConnections(closureReason, false);
-    }
 
-    /**
-     * Closes the keyed object pool. Once the pool is closed
-     */
-    public void closeAllConnections(final String closureReason, final boolean closeFrontConn) {
+    public void softCloseAllConnections(final String closureReason) {
         while (totalConnections.get() > 0) {
-            for (BackendConnection conn : allConnections) {
+            for (PooledConnection conn : allConnections) {
                 if (conn.getState() == STATE_IN_USE) {
-                    if (closeFrontConn) {
-                        ((MySQLConnection) conn).close(closureReason, true);
-                    } else {
-                        close(conn);
-                        conn.setOldTimestamp(System.currentTimeMillis());
-                        NIOProcessor.BACKENDS_OLD.add(conn);
-                    }
+                    close(conn);
+                    conn.setPoolDestroyedTime(System.currentTimeMillis());
+                    IOProcessor.BACKENDS_OLD.add(conn);
                 } else {
                     conn.close(closureReason);
                 }
             }
         }
     }
+
+    public void forceCloseAllConnection(final String closureReason) {
+        while (totalConnections.get() > 0) {
+            for (PooledConnection conn : allConnections) {
+                if (conn.getState() == STATE_IN_USE) {
+                    conn.closePooldestroyed(closureReason);
+                } else {
+                    conn.close(closureReason);
+                }
+            }
+        }
+    }
+
 
     /**
      * Closes the keyed object pool. Once the pool is closed
@@ -289,13 +286,17 @@ public class ConnectionPool extends PoolBase implements MySQLConnectionListener 
         }
 
         stopEvictor();
-        closeAllConnections(closureReason, closeFront);
+        if (closeFront) {
+            forceCloseAllConnection(closureReason);
+        } else {
+            softCloseAllConnections(closureReason);
+        }
     }
 
     private void evict() {
 
-        final ArrayList<BackendConnection> idleList = new ArrayList<>(allConnections.size());
-        for (final BackendConnection entry : allConnections) {
+        final ArrayList<PooledConnection> idleList = new ArrayList<>(allConnections.size());
+        for (final PooledConnection entry : allConnections) {
             if (entry.getState() == STATE_NOT_IN_USE) {
                 idleList.add(entry);
             }
@@ -307,17 +308,22 @@ public class ConnectionPool extends PoolBase implements MySQLConnectionListener 
         idleList.sort(LAST_ACCESS_COMPARABLE);
 
         logPoolState("before cleanup ");
-        for (BackendConnection conn : idleList) {
+        for (PooledConnection conn : idleList) {
             if (removable > 0 && System.currentTimeMillis() - conn.getLastTime() > poolConfig.getIdleTimeout() &&
                     conn.compareAndSet(STATE_NOT_IN_USE, STATE_RESERVED)) {
                 conn.close("connection has passed idleTimeout");
                 removable--;
             } else if (poolConfig.getTestWhileIdle() && conn.compareAndSet(STATE_NOT_IN_USE, STATE_HEARTBEAT)) {
-                ConnectionHeartBeatHandler heartBeatHandler = new ConnectionHeartBeatHandler(conn, false, this);
-                heartBeatHandler.ping(poolConfig.getConnectionHeartbeatTimeout());
+               /* ConnectionHeartBeatHandler heartBeatHandler = new ConnectionHeartBeatHandler(conn, false, this);
+                heartBeatHandler.ping(poolConfig.getConnectionHeartbeatTimeout());*/
+                conn.asynchronousTest();
             }
         }
 
+    }
+
+    public ReadTimeStatusInstance getInstance(){
+        return instance;
     }
 
     public final int getThreadsAwaitingConnection() {
@@ -328,7 +334,7 @@ public class ConnectionPool extends PoolBase implements MySQLConnectionListener 
      * <p>Starts the evictor with the given delay. If there is an evictor
      * running when this method is called, it is stopped and replaced with a
      * new evictor with the specified delay.</p>
-     *
+     * <p>
      * <p>This method needs to be final, since it is called from a constructor.
      * See POOL-195.</p>
      */
@@ -355,7 +361,8 @@ public class ConnectionPool extends PoolBase implements MySQLConnectionListener 
      */
     private void logPoolState(String... prefix) {
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{} db instance[{}] stats (total={}, active={}, idle={}, idleTest={} waiting={})", (prefix.length > 0 ? prefix[0] : ""), config.getInstanceName(),
+            LOGGER.debug("{} db instance[{}] stats (total={}, active={}, idle={}, idleTest={} waiting={})",
+                    (prefix.length > 0 ? prefix[0] : ""), config.getInstanceName(),
                     allConnections.size() - getCount(STATE_REMOVED), getCount(STATE_IN_USE), getCount(STATE_NOT_IN_USE), getCount(STATE_HEARTBEAT), getThreadsAwaitingConnection());
         }
     }

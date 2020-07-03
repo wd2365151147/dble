@@ -36,13 +36,14 @@ public class MySQLConnectionAuthenticator implements NIOHandler {
     }
 
     public void connectionError(MySQLConnection c, Throwable e) {
-        if (listener != null) {
+        /*if (listener != null) {
             listener.onCreateFail(c, e);
-        }
+        }*/
     }
 
     @Override
     public void handle(byte[] data) {
+        /**
         try {
             BinaryPacket bin2 = new BinaryPacket();
             if (checkPubicKey(data)) {
@@ -125,6 +126,7 @@ public class MySQLConnectionAuthenticator implements NIOHandler {
                 listener.onCreateFail(source, e);
             }
         }
+         */
     }
 
     private void processHandShakePacket(byte[] data) {
@@ -138,14 +140,14 @@ public class MySQLConnectionAuthenticator implements NIOHandler {
 
     private void auth323(byte packetId) {
         // send 323 auth packet
-        Reply323Packet r323 = new Reply323Packet();
+        /*Reply323Packet r323 = new Reply323Packet();
         r323.setPacketId(++packetId);
         String pass = source.getPassword();
         if (pass != null && pass.length() > 0) {
             byte[] seed = source.getHandshake().getSeed();
             r323.setSeed(SecurityUtil.scramble323(pass, new String(seed)).getBytes());
         }
-        r323.write(source);
+        r323.write(source);*/
     }
 
     public boolean checkPubicKey(byte[] data) {

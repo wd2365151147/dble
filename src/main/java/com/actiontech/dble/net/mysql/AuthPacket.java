@@ -12,6 +12,8 @@ import com.actiontech.dble.backend.mysql.MySQLMessage;
 import com.actiontech.dble.backend.mysql.StreamUtil;
 import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
 import com.actiontech.dble.config.Capabilities;
+import com.actiontech.dble.net.connection.AbstractConnection;
+import com.actiontech.dble.services.mysqlsharding.MySQLResponseService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -149,35 +151,35 @@ public class AuthPacket extends MySQLPacket {
     }
 
     @Override
-    public void write(MySQLConnection c) {
-        ByteBuffer buffer = c.allocate();
+    public void write(MySQLResponseService service) {
+        ByteBuffer buffer = service.allocate();
         BufferUtil.writeUB3(buffer, calcPacketSize());
         buffer.put(packetId);
         BufferUtil.writeUB4(buffer, clientFlags);       // capability flags
         BufferUtil.writeUB4(buffer, maxPacketSize);     // max-packet size
         buffer.put((byte) charsetIndex);                //character set
-        buffer = c.writeToBuffer(FILLER, buffer);       // reserved (all [0])
+        buffer = service.writeToBuffer(FILLER, buffer);       // reserved (all [0])
         if (user == null) {
-            buffer = c.checkWriteBuffer(buffer, 1, true);
+            buffer = service.checkWriteBuffer(buffer, 1, true);
             buffer.put((byte) 0);
         } else {
             byte[] userData = user.getBytes();
-            buffer = c.checkWriteBuffer(buffer, userData.length + 1, true);
+            buffer = service.checkWriteBuffer(buffer, userData.length + 1, true);
             BufferUtil.writeWithNull(buffer, userData);
         }
         if (password == null) {
-            buffer = c.checkWriteBuffer(buffer, 1, true);
+            buffer = service.checkWriteBuffer(buffer, 1, true);
             buffer.put((byte) 0);
         } else {
-            buffer = c.checkWriteBuffer(buffer, BufferUtil.getLength(password), true);
+            buffer = service.checkWriteBuffer(buffer, BufferUtil.getLength(password), true);
             BufferUtil.writeWithLength(buffer, password);
         }
         if (database == null) {
-            buffer = c.checkWriteBuffer(buffer, 1, true);
+            buffer = service.checkWriteBuffer(buffer, 1, true);
             buffer.put((byte) 0);
         } else {
             byte[] databaseData = database.getBytes();
-            buffer = c.checkWriteBuffer(buffer, databaseData.length + 1, true);
+            buffer = service.checkWriteBuffer(buffer, databaseData.length + 1, true);
             BufferUtil.writeWithNull(buffer, databaseData);
         }
         if ((clientFlags & Capabilities.CLIENT_PLUGIN_AUTH) != 0) {
@@ -185,7 +187,7 @@ public class AuthPacket extends MySQLPacket {
             BufferUtil.writeWithNull(buffer, HandshakeV10Packet.NATIVE_PASSWORD_PLUGIN);
         }
 
-        c.write(buffer);
+        service.write(buffer);
     }
 
 
@@ -218,7 +220,7 @@ public class AuthPacket extends MySQLPacket {
         }
     }
 
-    public void writeWithKey(MySQLConnection c) {
+    public void writeWithKey(AbstractConnection c) {
         ByteBuffer buffer = c.allocate();
         BufferUtil.writeUB3(buffer, calcPacketSizeWithKey());
         buffer.put(packetId);

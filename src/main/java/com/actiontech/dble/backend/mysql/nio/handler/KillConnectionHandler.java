@@ -8,13 +8,14 @@ package com.actiontech.dble.backend.mysql.nio.handler;
 import com.actiontech.dble.alarm.AlarmCode;
 import com.actiontech.dble.alarm.Alert;
 import com.actiontech.dble.alarm.AlertUtil;
-import com.actiontech.dble.backend.BackendConnection;
 import com.actiontech.dble.backend.mysql.CharsetUtil;
-import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
+import com.actiontech.dble.net.connection.BackendConnection;
 import com.actiontech.dble.net.mysql.ErrorPacket;
 import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
+import com.actiontech.dble.net.service.AbstractService;
 import com.actiontech.dble.server.NonBlockingSession;
+import com.actiontech.dble.services.mysqlsharding.MySQLResponseService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,20 +28,21 @@ import java.util.List;
 public class KillConnectionHandler implements ResponseHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(KillConnectionHandler.class);
 
-    private final MySQLConnection toKilled;
+    private final BackendConnection toKilled;
     private final NonBlockingSession session;
 
     public KillConnectionHandler(BackendConnection toKilled,
                                  NonBlockingSession session) {
-        this.toKilled = (MySQLConnection) toKilled;
+        this.toKilled = toKilled;
         this.session = session;
     }
 
     @Override
     public void connectionAcquired(BackendConnection conn) {
-        conn.setResponseHandler(this);
-        conn.setSession(session);
-        ((MySQLConnection) conn).sendQueryCmd(("KILL " + toKilled.getThreadId()), session.getSource().getCharset());
+        MySQLResponseService service  = (MySQLResponseService) conn.getService();
+        service.setResponseHandler(this);
+        service.setSession(session);
+        service.sendQueryCmd(("KILL " + toKilled.getThreadId()), session.getFrontConnection().getCharset());
     }
 
     @Override
@@ -50,12 +52,12 @@ public class KillConnectionHandler implements ResponseHandler {
     }
 
     @Override
-    public void okResponse(byte[] ok, BackendConnection conn) {
+    public void okResponse(byte[] ok, AbstractService service) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("kill connection success connection id:" +
                     toKilled.getThreadId());
         }
-        conn.release();
+        service.release();
         toKilled.close("killed");
 
     }
@@ -63,7 +65,7 @@ public class KillConnectionHandler implements ResponseHandler {
     @Override
     public void rowEofResponse(byte[] eof, boolean isLeft, BackendConnection conn) {
         LOGGER.info("unexpected packet for " +
-                conn + " bound by " + session.getSource() +
+                conn + " bound by " + session.getFrontConnection() +
                 ": field's eof");
         conn.close("close unexpected packet of killConnection");
         toKilled.close("killed");

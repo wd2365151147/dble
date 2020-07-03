@@ -57,7 +57,7 @@ public class SavePointHandler extends MultiNodeHandler {
         SavePoint newSp = new SavePoint(spName);
         if (session.getTargetCount() <= 0) {
             addSavePoint(newSp);
-            session.getSource().write(OkPacket.OK);
+            session.getFrontConnection().write(OkPacket.OK);
             return;
         }
 
@@ -87,13 +87,13 @@ public class SavePointHandler extends MultiNodeHandler {
     private void rollbackTo(String spName) {
         SavePoint sp = findSavePoint(spName);
         if (sp == null || sp.getPrev() == null) {
-            session.getSource().writeErrMessage(ER_SP_DOES_NOT_EXIST, "SAVEPOINT " + spName + " in dble does not exist");
+            session.getFrontConnection().writeErrMessage(ER_SP_DOES_NOT_EXIST, "SAVEPOINT " + spName + " in dble does not exist");
             return;
         }
 
         if (session.getTargetCount() <= 0) {
             rollbackToSavepoint(sp);
-            session.getSource().write(OkPacket.OK);
+            session.getFrontConnection().write(OkPacket.OK);
             return;
         }
 
@@ -123,7 +123,7 @@ public class SavePointHandler extends MultiNodeHandler {
     private void release(String spName) {
         SavePoint sp = findSavePoint(spName);
         if (sp == null || sp.getPrev() == null) {
-            session.getSource().writeErrMessage(ER_SP_DOES_NOT_EXIST, "SAVEPOINT " + spName + " in dble does not exist");
+            session.getFrontConnection().writeErrMessage(ER_SP_DOES_NOT_EXIST, "SAVEPOINT " + spName + " in dble does not exist");
             return;
         }
         sp = sp.getPrev();
@@ -131,7 +131,7 @@ public class SavePointHandler extends MultiNodeHandler {
             savepoints.setPrev(sp.getPrev());
             sp.setPrev(null);
         }
-        session.getSource().write(OkPacket.OK);
+        session.getFrontConnection().write(OkPacket.OK);
     }
 
     // find savepoint after named savepoint
@@ -224,7 +224,7 @@ public class SavePointHandler extends MultiNodeHandler {
             return;
         }
         if (this.isFail()) {
-            createErrPkg(error).write(session.getSource());
+            createErrPkg(error).write(session.getFrontConnection());
         } else {
             switch (this.type) {
                 case SAVE:
@@ -238,7 +238,7 @@ public class SavePointHandler extends MultiNodeHandler {
                     break;
             }
             boolean multiStatementFlag = session.getIsMultiStatement().get();
-            session.getSource().write(send);
+            session.getFrontConnection().write(send);
             session.multiStatementNextSql(multiStatementFlag);
         }
     }

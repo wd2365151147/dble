@@ -6,7 +6,7 @@
 package com.actiontech.dble.server.response;
 
 import com.actiontech.dble.backend.mysql.PreparedStatement;
-import com.actiontech.dble.net.FrontendConnection;
+import com.actiontech.dble.net.connection.AbstractConnection;
 import com.actiontech.dble.net.mysql.EOFPacket;
 import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.PreparedOkPacket;
@@ -20,7 +20,7 @@ public final class PreparedStmtResponse {
     private PreparedStmtResponse() {
     }
 
-    public static void response(PreparedStatement pStmt, FrontendConnection c) {
+    public static void response(PreparedStatement pStmt, AbstractConnection c) {
         byte packetId = 0;
 
         // write preparedOk packet

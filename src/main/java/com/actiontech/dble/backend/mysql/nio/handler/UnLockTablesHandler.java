@@ -43,12 +43,12 @@ public class UnLockTablesHandler extends MultiNodeHandler implements ResponseHan
         this.reset();
         // if client just send an unlock tables, theres is no lock tables statement, just send back OK
         if (lockedCons.size() == 0) {
-            LOGGER.info("find no locked backend connection!" + session.getSource());
+            LOGGER.info("find no locked backend connection!" + session.getFrontConnection());
             OkPacket ok = new OkPacket();
             ok.setPacketId(++packetId);
             ok.setPacketLength(7); // the size of unlock table's response OK packet is 7
-            ok.setServerStatus(session.getSource().isAutocommit() ? 2 : 1);
-            ok.write(session.getSource());
+            ok.setServerStatus(session.getFrontConnection().isAutocommit() ? 2 : 1);
+            ok.write(session.getFrontConnection());
             return;
         }
         Map<RouteResultsetNode, BackendConnection> forUnlocks = new HashMap<>(lockedCons.size());
@@ -68,7 +68,7 @@ public class UnLockTablesHandler extends MultiNodeHandler implements ResponseHan
             conn.setResponseHandler(this);
             conn.setSession(session);
             try {
-                conn.execute(node, session.getSource(), autocommit);
+                conn.execute(node, session.getFrontConnection(), autocommit);
             } catch (Exception e) {
                 connectionError(e, node);
             }
@@ -116,13 +116,13 @@ public class UnLockTablesHandler extends MultiNodeHandler implements ResponseHan
                 lock.lock();
                 try {
                     ok.setPacketId(++packetId);
-                    ok.setServerStatus(session.getSource().isAutocommit() ? 2 : 1);
+                    ok.setServerStatus(session.getFrontConnection().isAutocommit() ? 2 : 1);
                 } finally {
                     lock.unlock();
                 }
                 session.multiStatementPacket(ok, packetId);
                 boolean multiStatementFlag = session.getIsMultiStatement().get();
-                ok.write(session.getSource());
+                ok.write(session.getFrontConnection());
                 session.multiStatementNextSql(multiStatementFlag);
             }
         }
@@ -132,14 +132,14 @@ public class UnLockTablesHandler extends MultiNodeHandler implements ResponseHan
     public void fieldEofResponse(byte[] header, List<byte[]> fields, List<FieldPacket> fieldPackets, byte[] eof,
                                  boolean isLeft, BackendConnection conn) {
         LOGGER.info("unexpected packet for " +
-                conn + " bound by " + session.getSource() +
+                conn + " bound by " + session.getFrontConnection() +
                 ": field's eof");
     }
 
     @Override
     public boolean rowResponse(byte[] rowNull, RowDataPacket rowPacket, boolean isLeft, BackendConnection conn) {
         LOGGER.info("unexpected packet for " +
-                conn + " bound by " + session.getSource() +
+                conn + " bound by " + session.getFrontConnection() +
                 ": row data packet");
         return false;
     }
@@ -147,7 +147,7 @@ public class UnLockTablesHandler extends MultiNodeHandler implements ResponseHan
     @Override
     public void rowEofResponse(byte[] eof, boolean isLeft, BackendConnection conn) {
         LOGGER.info("unexpected packet for " +
-                conn + " bound by " + session.getSource() +
+                conn + " bound by " + session.getFrontConnection() +
                 ": row's eof");
     }
 

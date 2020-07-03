@@ -82,7 +82,7 @@ public final class NIOAcceptor extends Thread implements SocketAcceptor {
     private void accept() {
         SocketChannel channel = null;
         try {
-            channel = serverChannel.accept();
+            /*channel = serverChannel.accept();
             channel.configureBlocking(false);
             FrontendConnection c = factory.make(channel);
             c.setAccepted(true);
@@ -91,7 +91,7 @@ public final class NIOAcceptor extends Thread implements SocketAcceptor {
             c.setProcessor(processor);
 
             NIOReactor reactor = reactorPool.getNextReactor();
-            reactor.postRegister(c);
+            reactor.postRegister(c);*/
 
         } catch (Exception e) {
             LOGGER.info(getName(), e);

@@ -34,7 +34,7 @@ public class RollbackStage implements TransactionStage {
 
         session.setResponseTime(false);
         if (isFail) {
-            session.getSource().write(sendData);
+            session.getFrontConnection().write(sendData);
             return null;
         }
 
@@ -44,7 +44,7 @@ public class RollbackStage implements TransactionStage {
             sendData = session.getOkByteArray();
         }
         boolean multiStatementFlag = session.getIsMultiStatement().get();
-        session.getSource().write(sendData);
+        session.getFrontConnection().write(sendData);
         session.multiStatementNextSql(multiStatementFlag);
         session.clearSavepoint();
         return null;

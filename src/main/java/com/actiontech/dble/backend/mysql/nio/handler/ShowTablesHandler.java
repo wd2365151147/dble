@@ -39,9 +39,9 @@ public class ShowTablesHandler extends SingleNodeHandler {
 
     public ShowTablesHandler(RouteResultset rrs, NonBlockingSession session, ShowTablesStmtInfo info) {
         super(rrs, session);
-        buffer = session.getSource().allocate();
+        buffer = session.getFrontConnection().allocate();
         this.info = info;
-        ServerConnection source = session.getSource();
+        ServerConnection source = session.getFrontConnection();
         String showSchema = info.getSchema();
         if (showSchema != null && DbleServer.getInstance().getSystemVariables().isLowerCaseTableNames()) {
             showSchema = showSchema.toLowerCase();
@@ -53,7 +53,7 @@ public class ShowTablesHandler extends SingleNodeHandler {
     @Override
     public void fieldEofResponse(byte[] header, List<byte[]> fields, List<FieldPacket> fieldPacketsNull, byte[] eof,
                                  boolean isLeft, BackendConnection conn) {
-        ServerConnection source = session.getSource();
+        ServerConnection source = session.getFrontConnection();
         PackageBufINf bufInf;
         lock.lock();
         try {
@@ -96,7 +96,7 @@ public class ShowTablesHandler extends SingleNodeHandler {
     public boolean rowResponse(byte[] row, RowDataPacket rowPacket, boolean isLeft, BackendConnection conn) {
         RowDataPacket rowDataPacket = new RowDataPacket(1);
         rowDataPacket.read(row);
-        String table = StringUtil.decode(rowDataPacket.fieldValues.get(0), session.getSource().getCharset().getResults());
+        String table = StringUtil.decode(rowDataPacket.fieldValues.get(0), session.getFrontConnection().getCharset().getResults());
         if (shardingTablesMap.containsKey(table)) {
             this.netOutBytes += row.length;
             this.selectRows++;

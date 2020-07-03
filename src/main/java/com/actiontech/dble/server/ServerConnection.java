@@ -28,7 +28,6 @@ import com.actiontech.dble.route.util.RouterUtil;
 import com.actiontech.dble.server.handler.SetHandler;
 import com.actiontech.dble.server.handler.SetInnerHandler;
 import com.actiontech.dble.server.parser.ServerParse;
-import com.actiontech.dble.server.response.Heartbeat;
 import com.actiontech.dble.server.response.InformationSchemaProfiling;
 import com.actiontech.dble.server.response.ShowCreateView;
 import com.actiontech.dble.server.util.SchemaUtil;
@@ -285,7 +284,7 @@ public class ServerConnection extends FrontendConnection {
         for (Pair<SetHandler.KeyType, Pair<String, String>> task : innerSetTask) {
             switch (task.getKey()) {
                 case XA:
-                    session.getTransactionManager().setXaTxEnabled(Boolean.valueOf(task.getValue().getKey()), this);
+                    //session.getTransactionManager().setXaTxEnabled(Boolean.valueOf(task.getValue().getKey()), this);
                     break;
                 case AUTOCOMMIT:
                     autoCommitTask = task;
@@ -349,10 +348,6 @@ public class ServerConnection extends FrontendConnection {
         }
     }
 
-    public void heartbeat(byte[] data) {
-        Heartbeat.response(this, data);
-    }
-
     public void execute(String sql, int type) {
         if (this.isClosed()) {
             LOGGER.info("ignore execute ,server connection is closed " + this);
@@ -378,7 +373,7 @@ public class ServerConnection extends FrontendConnection {
         // SELECT STATE AS `State`, ROUND(SUM(DURATION),7) AS `Duration`, CONCAT(ROUND(SUM(DURATION)/*100,3), '%') AS `Percentage`
         // FROM INFORMATION_SCHEMA.PROFILING WHERE QUERY_ID= GROUP BY STATE ORDER BY SEQ
         if (ServerParse.SELECT == type && sql.contains(" INFORMATION_SCHEMA.PROFILING ") && sql.contains("CONCAT(ROUND(SUM(DURATION)/")) {
-            InformationSchemaProfiling.response(this);
+            //InformationSchemaProfiling.response(this);
             return;
         }
         routeEndExecuteSQL(sql, type, schemaConfig);
@@ -399,7 +394,7 @@ public class ServerConnection extends FrontendConnection {
             } else {
                 if (schemaInfo.getSchemaConfig().getTables().get(schemaInfo.getTable()) == null) {
                     // check view
-                    ShowCreateView.response(this, schemaInfo.getSchema(), schemaInfo.getTable());
+                    //ShowCreateView.response(this, schemaInfo.getSchema(), schemaInfo.getTable());
                     return;
                 }
                 RouterUtil.routeToRandomNode(rrs, schemaInfo.getSchemaConfig(), schemaInfo.getTable());
@@ -416,9 +411,9 @@ public class ServerConnection extends FrontendConnection {
             return;
         }
 
-        RouteResultset rrs;
+        RouteResultset rrs = null;
         try {
-            rrs = RouteService.getInstance().route(schemaConfig, type, sql, this);
+           /* rrs = RouteService.getInstance().route(schemaConfig, type, sql, this);
             if (rrs == null) {
                 return;
             }
@@ -429,7 +424,7 @@ public class ServerConnection extends FrontendConnection {
                     LOGGER.info(msg);
                     throw new SQLNonTransientException(msg);
                 }
-            }
+            }*/
         } catch (Exception e) {
             executeException(e, sql);
             return;
@@ -723,7 +718,7 @@ public class ServerConnection extends FrontendConnection {
     }
 
     private void doLockTable(String sql) {
-        String db = this.schema;
+        /*String db = this.schema;
         SchemaConfig schemaConfig = null;
         if (this.schema != null) {
             schemaConfig = DbleServer.getInstance().getConfig().getSchemas().get(this.schema);
@@ -743,7 +738,7 @@ public class ServerConnection extends FrontendConnection {
 
         if (rrs != null) {
             session.lockTable(rrs);
-        }
+        }*/
     }
 
     void unLockTable(String sql) {
@@ -759,7 +754,7 @@ public class ServerConnection extends FrontendConnection {
 
     public void innerCleanUp() {
         //rollback and unlock tables  means close backend conns;
-        Iterator<BackendConnection> connIterator = session.getTargetMap().values().iterator();
+        /*Iterator<BackendConnection> connIterator = session.getTargetMap().values().iterator();
         while (connIterator.hasNext()) {
             BackendConnection conn = connIterator.next();
             conn.closeWithoutRsp("com_reset_connection");
@@ -780,7 +775,7 @@ public class ServerConnection extends FrontendConnection {
         //prepare
         if (prepareHandler != null) {
             prepareHandler.clear();
-        }
+        }*/
     }
 
     @Override
@@ -846,10 +841,10 @@ public class ServerConnection extends FrontendConnection {
     @Override
     public void killAndClose(String reason) {
         super.close(reason);
-        if (!session.getSource().isTxStart() || session.getTransactionManager().getXAStage() == null) {
+       /* if (!session.getFrontConnection().isTxStart() || session.getTransactionManager().getXAStage() == null) {
             //not a xa transaction ,close it
             session.kill();
-        }
+        }*/
     }
 
     @Override
@@ -945,6 +940,6 @@ public class ServerConnection extends FrontendConnection {
     }
 
     public void startFlowControl(BackendConnection backendConnection) {
-        session.startFlowControl(backendConnection);
+       // session.startFlowControl(backendConnection);
     }
 }

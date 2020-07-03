@@ -5,8 +5,9 @@
 */
 package com.actiontech.dble.net.mysql;
 
-import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
-import com.actiontech.dble.net.FrontendConnection;
+import com.actiontech.dble.net.connection.AbstractConnection;
+import com.actiontech.dble.net.service.AbstractService;
+import com.actiontech.dble.services.mysqlsharding.MySQLResponseService;
 
 import java.nio.ByteBuffer;
 
@@ -182,14 +183,21 @@ public abstract class MySQLPacket {
     /**
      * write to buffer ,if writeSocketIfFull write the buffer data to FrontendConnection
      */
-    public ByteBuffer write(ByteBuffer buffer, FrontendConnection c, boolean writeSocketIfFull) {
+    public ByteBuffer write(ByteBuffer buffer, AbstractService service, boolean writeSocketIfFull) {
         throw new UnsupportedOperationException();
     }
 
     /**
      * write to backend connection
      */
-    public void write(MySQLConnection c) {
+    public void write(MySQLResponseService service) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * write to a net connection
+     */
+    public void write(AbstractConnection connection) {
         throw new UnsupportedOperationException();
     }
 
