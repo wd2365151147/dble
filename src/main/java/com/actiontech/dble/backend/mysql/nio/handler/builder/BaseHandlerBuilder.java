@@ -190,7 +190,7 @@ public abstract class BaseHandlerBuilder {
             }
         }
 
-        MultiNodeMergeHandler mh = new MultiNodeEasyMergeHandler(getSequenceId(), rrss, session.getFrontConnection().isAutocommit() && !session.getFrontConnection().isTxStart(),
+        MultiNodeMergeHandler mh = new MultiNodeEasyMergeHandler(getSequenceId(), rrss, session.getShardingService().isAutocommit() && !session.getFrontConnection().isTxStart(),
                 session);
         addHandler(mh);
     }

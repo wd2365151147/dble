@@ -20,13 +20,13 @@ import com.actiontech.dble.net.AbstractConnection;
 import com.actiontech.dble.net.NIOConnector;
 import com.actiontech.dble.net.NIOProcessor;
 import com.actiontech.dble.net.handler.BackEndCleaner;
-import com.actiontech.dble.net.handler.BackEndRecycleRunnable;
 import com.actiontech.dble.net.mysql.*;
 import com.actiontech.dble.route.RouteResultsetNode;
 import com.actiontech.dble.route.parser.util.Pair;
 import com.actiontech.dble.server.NonBlockingSession;
 import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.parser.ServerParse;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.PasswordAuthPlugin;
 import com.actiontech.dble.util.StringUtil;
 import com.actiontech.dble.util.TimeUtil;
@@ -402,14 +402,14 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
         }
     }
 
-    public void executeMultiNode(RouteResultsetNode rrn, ServerConnection sc,
+    public void executeMultiNode(RouteResultsetNode rrn, MySQLShardingService service,
                                  boolean isAutoCommit) {
         String xaTxId = getConnXID(session.getSessionXaID(), rrn.getMultiplexNum().longValue());
-        if (!sc.isAutocommit() && !sc.isTxStart() && rrn.isModifySQL()) {
-            sc.setTxStart(true);
+        if (!service.isAutocommit() && !service.isTxStart() && rrn.isModifySQL()) {
+            service.setTxStarted(true);
         }
-        StringBuilder synSQL = getSynSql(xaTxId, rrn, sc.getCharset(), sc.getTxIsolation(), isAutoCommit, sc.getUsrVariables(), sc.getSysVariables());
-        synAndDoExecuteMultiNode(synSQL, rrn, sc.getCharset());
+        StringBuilder synSQL = getSynSql(xaTxId, rrn, service.getCharset(), service.getTxIsolation(), isAutoCommit, service.getUsrVariables(), service.getSysVariables());
+        synAndDoExecuteMultiNode(synSQL, rrn, service.getCharset());
     }
 
     private StringBuilder getSynSql(String xaTxID, RouteResultsetNode rrn,

@@ -1,6 +1,6 @@
 package com.actiontech.dble.backend.mysql.nio.handler.transaction;
 
-import com.actiontech.dble.backend.BackendConnection;
+import com.actiontech.dble.net.connection.BackendConnection;
 import com.actiontech.dble.route.RouteResultsetNode;
 import com.actiontech.dble.server.NonBlockingSession;
 

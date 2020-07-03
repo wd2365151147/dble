@@ -14,7 +14,6 @@ import com.actiontech.dble.config.model.ClusterConfig;
 import com.actiontech.dble.config.model.SystemConfig;
 import com.actiontech.dble.config.model.sharding.SchemaConfig;
 import com.actiontech.dble.config.model.sharding.table.BaseTableConfig;
-import com.actiontech.dble.manager.ManagerConnection;
 import com.actiontech.dble.meta.PauseEndThreadPool;
 import com.actiontech.dble.meta.SchemaMeta;
 import com.actiontech.dble.meta.TableMeta;
@@ -22,7 +21,7 @@ import com.actiontech.dble.net.connection.BackendConnection;
 import com.actiontech.dble.plan.node.TableNode;
 import com.actiontech.dble.route.RouteResultset;
 import com.actiontech.dble.route.RouteResultsetNode;
-import com.actiontech.dble.server.ServerConnection;
+import com.actiontech.dble.services.manager.ManagerService;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -214,7 +213,7 @@ public final class PauseShardingNodeManager {
     }
 
 
-    public boolean waitForCluster(ManagerConnection c, long beginTime, long timeOut) throws Exception {
+    public boolean waitForCluster(ManagerService service, long beginTime, long timeOut) throws Exception {
         if (ClusterConfig.getInstance().isClusterEnable()) {
             Map<String, String> expectedMap = ClusterHelper.getOnlineMap();
             StringBuffer sb = new StringBuffer();
@@ -224,14 +223,14 @@ public final class PauseShardingNodeManager {
                         return true;
                     } else {
                         LOGGER.info("wait for cluster error " + sb.toString());
-                        c.writeErrMessage(1003, sb.toString());
+                        service.writeErrMessage(1003, sb.toString());
                         return false;
                     }
                 } else if (System.currentTimeMillis() - beginTime > timeOut) {
                     LOGGER.info("wait for cluster timeout, try to resume the self & others");
                     PauseShardingNodeManager.getInstance().resume();
                     PauseShardingNodeManager.getInstance().resumeCluster();
-                    c.writeErrMessage(1003, "There are some node in cluster can't recycle backend");
+                    service.writeErrMessage(1003, "There are some node in cluster can't recycle backend");
                     return false;
                 }
             }

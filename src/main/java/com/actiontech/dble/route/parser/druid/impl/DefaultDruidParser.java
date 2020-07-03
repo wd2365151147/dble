@@ -22,6 +22,7 @@ import com.actiontech.dble.route.util.ConditionUtil;
 import com.actiontech.dble.route.util.RouterUtil;
 import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.util.SchemaUtil;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.singleton.ProxyMeta;
 import com.actiontech.dble.util.StringUtil;
 import com.alibaba.druid.sql.ast.SQLStatement;
@@ -47,15 +48,15 @@ public class DefaultDruidParser implements DruidParser {
         ctx = new DruidShardingParseInfo();
     }
 
-    public SchemaConfig parser(SchemaConfig schema, RouteResultset rrs, SQLStatement stmt, ServerSchemaStatVisitor schemaStatVisitor, ServerConnection sc, boolean isExplain) throws SQLException {
+    public SchemaConfig parser(SchemaConfig schema, RouteResultset rrs, SQLStatement stmt, ServerSchemaStatVisitor schemaStatVisitor, MySQLShardingService service, boolean isExplain) throws SQLException {
         ctx = new DruidShardingParseInfo();
-        schema = visitorParse(schema, rrs, stmt, schemaStatVisitor, sc, isExplain);
+        schema = visitorParse(schema, rrs, stmt, schemaStatVisitor, service, isExplain);
         changeSql(schema, rrs, stmt);
         return schema;
     }
 
-    public SchemaConfig parser(SchemaConfig schema, RouteResultset rrs, SQLStatement stmt, ServerSchemaStatVisitor schemaStatVisitor, ServerConnection sc) throws SQLException {
-        return this.parser(schema, rrs, stmt, schemaStatVisitor, sc, false);
+    public SchemaConfig parser(SchemaConfig schema, RouteResultset rrs, SQLStatement stmt, ServerSchemaStatVisitor schemaStatVisitor, MySQLShardingService service) throws SQLException {
+        return this.parser(schema, rrs, stmt, schemaStatVisitor, service, false);
     }
 
 
@@ -66,7 +67,7 @@ public class DefaultDruidParser implements DruidParser {
     }
 
     @Override
-    public SchemaConfig visitorParse(SchemaConfig schemaConfig, RouteResultset rrs, SQLStatement stmt, ServerSchemaStatVisitor visitor, ServerConnection sc, boolean isExplain)
+    public SchemaConfig visitorParse(SchemaConfig schemaConfig, RouteResultset rrs, SQLStatement stmt, ServerSchemaStatVisitor visitor, MySQLShardingService service, boolean isExplain)
             throws SQLException {
         stmt.accept(visitor);
         if (visitor.getNotSupportMsg() != null) {

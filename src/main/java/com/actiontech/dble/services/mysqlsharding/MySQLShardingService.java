@@ -26,6 +26,7 @@ import com.actiontech.dble.server.util.SchemaUtil;
 import com.actiontech.dble.services.MySQLBasedService;
 import com.actiontech.dble.statistic.CommandCount;
 import com.actiontech.dble.util.StringUtil;
+import com.actiontech.dble.util.TimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,6 +67,8 @@ public class MySQLShardingService extends MySQLBasedService {
     private volatile boolean txChainBegin;
     private volatile boolean txInterrupted;
     private volatile String txInterruptMsg = "";
+
+    protected long lastReadTime;
 
     private volatile int txIsolation;
 
@@ -306,24 +309,6 @@ public class MySQLShardingService extends MySQLBasedService {
         }
     }
 
-    public void writeErrMessage(int vendorCode, String msg) {
-        writeErrMessage((byte) 1, vendorCode, msg);
-    }
-
-    public void writeErrMessage(byte id, int vendorCode, String msg) {
-        writeErrMessage(id, vendorCode, "HY000", msg);
-    }
-
-    protected void writeErrMessage(byte id, int vendorCode, String sqlState, String msg) {
-        markFinished();
-        ErrorPacket err = new ErrorPacket();
-        err.setPacketId(id);
-        err.setErrNo(vendorCode);
-        err.setSqlState(StringUtil.encode(sqlState, connection.getCharsetName().getResults()));
-        err.setMessage(StringUtil.encode(msg, connection.getCharsetName().getResults()));
-        err.write(connection);
-    }
-
     public void writeErrMessage(String sqlState, String msg, int vendorCode) {
         byte packetId = (byte) this.getSession2().getPacketId().get();
         writeErrMessage(++packetId, vendorCode, sqlState, msg);
@@ -333,11 +318,18 @@ public class MySQLShardingService extends MySQLBasedService {
         }
     }
 
-
     public void markFinished() {
         if (session != null) {
             session.setStageFinished();
         }
+    }
+
+    public int getTxIsolation() {
+        return txIsolation;
+    }
+
+    public void setTxIsolation(int txIsolation) {
+        this.txIsolation = txIsolation;
     }
 
     public boolean isTxStarted() {
@@ -445,5 +437,9 @@ public class MySQLShardingService extends MySQLBasedService {
 
     public void setUsrVariables(Map<String, String> usrVariables) {
         this.usrVariables = usrVariables;
+    }
+
+    public void updateLastReadTime() {
+        this.lastReadTime = TimeUtil.currentTimeMillis();
     }
 }

@@ -24,7 +24,6 @@ import com.actiontech.dble.route.RouteResultsetNode;
 import com.actiontech.dble.route.parser.druid.RouteCalculateUnit;
 import com.actiontech.dble.route.parser.util.Pair;
 import com.actiontech.dble.route.util.RouterUtil;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.parser.ServerParse;
 import com.actiontech.dble.server.util.SchemaUtil;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
@@ -705,7 +704,7 @@ public final class ServerLoadDataInfileHandler implements LoadDataInfileHandler 
                 OkPacket ok = new OkPacket();
                 ok.setPacketId(++packId);
                 ok.setMessage("Records: 0  Deleted: 0  Skipped: 0  Warnings: 0".getBytes());
-                ok.write(service);
+                ok.write(service.getConnection());
                 return false;
             }
             return true;

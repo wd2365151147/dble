@@ -10,7 +10,7 @@ import java.nio.channels.NetworkChannel;
 /**
  * Created by szf on 2020/6/23.
  */
-public class BackendConnection extends  PooledConnection {
+public class BackendConnection extends PooledConnection {
 
     private long threadId = 0;
 
@@ -39,7 +39,7 @@ public class BackendConnection extends  PooledConnection {
 
     }
 
-    public void onConnectFailed(Throwable e){
+    public void onConnectFailed(Throwable e) {
 
     }
 
@@ -60,7 +60,7 @@ public class BackendConnection extends  PooledConnection {
 
     @Override
     public void release() {
-
+        getBackendService().release();
     }
 
     @Override
@@ -87,7 +87,7 @@ public class BackendConnection extends  PooledConnection {
         this.threadId = threadId;
     }
 
-    public MySQLResponseService getBackendService(){
-        return (MySQLResponseService)getService();
+    public MySQLResponseService getBackendService() {
+        return (MySQLResponseService) getService();
     }
 }

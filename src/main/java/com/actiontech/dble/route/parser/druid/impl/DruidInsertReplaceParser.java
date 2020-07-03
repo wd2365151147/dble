@@ -20,6 +20,7 @@ import com.actiontech.dble.route.util.RouterUtil;
 import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.handler.ExplainHandler;
 import com.actiontech.dble.server.util.SchemaUtil;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.singleton.ProxyMeta;
 import com.actiontech.dble.util.StringUtil;
 import com.alibaba.druid.sql.ast.SQLExpr;
@@ -164,7 +165,7 @@ abstract class DruidInsertReplaceParser extends DruidModifyParser {
     }
 
 
-    void fetchChildTableToRoute(ChildTableConfig tc, String joinColumnVal, ServerConnection sc, SchemaConfig schema, String sql, RouteResultset rrs, boolean isExplain) {
+    void fetchChildTableToRoute(ChildTableConfig tc, String joinColumnVal, MySQLShardingService service, SchemaConfig schema, String sql, RouteResultset rrs, boolean isExplain) {
         DbleServer.getInstance().getComplexQueryExecutor().execute(new Runnable() {
             //get child result will be blocked, so use ComplexQueryExecutor
             @Override
@@ -174,11 +175,11 @@ abstract class DruidInsertReplaceParser extends DruidModifyParser {
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("to find root parent's node sql :" + findRootTBSql);
                 }
-                FetchStoreNodeOfChildTableHandler fetchHandler = new FetchStoreNodeOfChildTableHandler(findRootTBSql, sc.getSession2());
+                FetchStoreNodeOfChildTableHandler fetchHandler = new FetchStoreNodeOfChildTableHandler(findRootTBSql, service.getSession2());
                 try {
                     String dn = fetchHandler.execute(schema.getName(), tc.getRootParent().getShardingNodes());
                     if (dn == null) {
-                        sc.writeErrMessage(ErrorCode.ER_UNKNOWN_ERROR, "can't find (root) parent sharding node for sql:" + sql);
+                        service.writeErrMessage(ErrorCode.ER_UNKNOWN_ERROR, "can't find (root) parent sharding node for sql:" + sql);
                         return;
                     }
                     if (LOGGER.isDebugEnabled()) {
@@ -186,13 +187,13 @@ abstract class DruidInsertReplaceParser extends DruidModifyParser {
                     }
                     RouterUtil.routeToSingleNode(rrs, dn);
                     if (isExplain) {
-                        ExplainHandler.writeOutHeadAndEof(sc, rrs);
+                        ExplainHandler.writeOutHeadAndEof(service, rrs);
                     } else {
-                        sc.getSession2().execute(rrs);
+                        service.getSession2().execute(rrs);
                     }
                 } catch (ConnectionException e) {
-                    sc.setTxInterrupt(e.toString());
-                    sc.writeErrMessage(ErrorCode.ER_UNKNOWN_ERROR, e.toString());
+                    service.setTxInterrupt(e.toString());
+                    service.writeErrMessage(ErrorCode.ER_UNKNOWN_ERROR, e.toString());
                 }
             }
         });

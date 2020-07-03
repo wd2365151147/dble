@@ -6,7 +6,6 @@
 package com.actiontech.dble.cluster;
 
 import com.actiontech.dble.DbleServer;
-import com.actiontech.dble.backend.BackendConnection;
 import com.actiontech.dble.backend.datasource.PhysicalDbGroup;
 import com.actiontech.dble.backend.mysql.view.Repository;
 import com.actiontech.dble.btrace.provider.ClusterDelayProvider;
@@ -36,7 +35,8 @@ import com.actiontech.dble.manager.response.ShowBinlogStatus;
 import com.actiontech.dble.meta.ReloadManager;
 import com.actiontech.dble.meta.ViewMeta;
 import com.actiontech.dble.net.FrontendConnection;
-import com.actiontech.dble.net.NIOProcessor;
+import com.actiontech.dble.net.IOProcessor;
+import com.actiontech.dble.net.connection.BackendConnection;
 import com.actiontech.dble.route.RouteResultsetNode;
 import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.singleton.HaConfigManager;
@@ -324,7 +324,7 @@ public final class ClusterLogic {
                         lock.lock();
                         try {
                             boolean nextTurn = false;
-                            for (NIOProcessor processor : DbleServer.getInstance().getFrontProcessors()) {
+                            for (IOProcessor processor : DbleServer.getInstance().getFrontProcessors()) {
                                 for (Map.Entry<Long, FrontendConnection> entry : processor.getFrontends().entrySet()) {
                                     if (entry.getValue() instanceof ServerConnection) {
                                         ServerConnection sconnection = (ServerConnection) entry.getValue();
