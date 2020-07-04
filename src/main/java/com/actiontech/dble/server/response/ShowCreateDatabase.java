@@ -16,6 +16,7 @@ import com.actiontech.dble.net.mysql.ResultSetHeaderPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
 import com.actiontech.dble.route.factory.RouteStrategyFactory;
 import com.actiontech.dble.server.ServerConnection;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.StringUtil;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowCreateDatabaseStatement;
 
@@ -47,7 +48,7 @@ public final class ShowCreateDatabase {
     private ShowCreateDatabase() {
     }
 
-    public static void response(ServerConnection c, String stmt) {
+    public static void response(MySQLShardingService shardingService, String stmt) {
         try {
             stmt = stmt.replaceAll("IF\\s+NOT\\s+EXISTS", "");
             MySqlShowCreateDatabaseStatement statement = (MySqlShowCreateDatabaseStatement) RouteStrategyFactory.getRouteStrategy().parserSQL(stmt);
@@ -56,28 +57,28 @@ public final class ShowCreateDatabase {
             if (sc == null) {
                 throw new Exception("Unknown schema '" + schema + "' in config");
             }
-            ByteBuffer buffer = c.allocate();
+            ByteBuffer buffer = shardingService.allocate();
             // write header
-            buffer = HEADER.write(buffer, c, true);
+            buffer = HEADER.write(buffer, shardingService, true);
             // write fields
             for (FieldPacket field : FIELDS) {
-                buffer = field.write(buffer, c, true);
+                buffer = field.write(buffer, shardingService, true);
             }
             // write eof
-            buffer = EOF.write(buffer, c, true);
+            buffer = EOF.write(buffer, shardingService, true);
             // write rows
             byte packetId = EOF.getPacketId();
-            RowDataPacket row = getRow(schema, c.getCharset().getResults());
+            RowDataPacket row = getRow(schema, shardingService.getCharset().getResults());
             row.setPacketId(++packetId);
-            buffer = row.write(buffer, c, true);
+            buffer = row.write(buffer, shardingService, true);
             // write last eof
             EOFPacket lastEof = new EOFPacket();
             lastEof.setPacketId(++packetId);
-            buffer = lastEof.write(buffer, c, true);
+            buffer = lastEof.write(buffer, shardingService, true);
             // write buffer
-            c.write(buffer);
+            shardingService.write(buffer);
         } catch (Exception e) {
-            c.writeErrMessage(ErrorCode.ER_PARSE_ERROR, e.getMessage());
+            shardingService.writeErrMessage(ErrorCode.ER_PARSE_ERROR, e.getMessage());
         }
     }
 

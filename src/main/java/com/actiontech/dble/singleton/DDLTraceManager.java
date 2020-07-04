@@ -4,6 +4,7 @@ import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
 import com.actiontech.dble.route.RouteResultsetNode;
 import com.actiontech.dble.cluster.values.DDLTraceInfo;
 import com.actiontech.dble.server.ServerConnection;
+import com.actiontech.dble.services.mysqlsharding.MySQLResponseService;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.TimeUtil;
 import org.slf4j.Logger;
@@ -35,11 +36,11 @@ public final class DDLTraceManager {
         LOGGER.info("NEW DDL START:" + info.toString());
     }
 
-    public void updateConnectionStatus(MySQLShardingService service, MySQLConnection mc, DDLTraceInfo.DDLConnectionStatus status) {
+    public void updateConnectionStatus(MySQLShardingService service, MySQLResponseService mr, DDLTraceInfo.DDLConnectionStatus status) {
         DDLTraceInfo info = traceMap.get(service);
         if (info != null) {
-            info.updateConnectionStatus(mc, status);
-            LOGGER.info("[DDL][{}] MySQLConnection status update : backendId = {} mysqlId = {} {}", info.getId(), mc.getId(), mc.getThreadId(), status);
+            info.updateConnectionStatus(mr, status);
+            LOGGER.info("[DDL][{}] MySQLConnection status update : backendId = {} mysqlId = {} {}", info.getId(), mr.getConnection().getId(), mr.getConnection().getThreadId(), status);
         }
     }
 

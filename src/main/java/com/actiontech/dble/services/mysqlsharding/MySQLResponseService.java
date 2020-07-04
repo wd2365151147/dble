@@ -13,10 +13,7 @@ import com.actiontech.dble.net.connection.BackendConnection;
 import com.actiontech.dble.net.connection.PooledConnection;
 import com.actiontech.dble.net.handler.BackEndCleaner;
 import com.actiontech.dble.net.handler.BackEndRecycleRunnable;
-import com.actiontech.dble.net.mysql.CharsetNames;
-import com.actiontech.dble.net.mysql.CommandPacket;
-import com.actiontech.dble.net.mysql.MySQLPacket;
-import com.actiontech.dble.net.mysql.PingPacket;
+import com.actiontech.dble.net.mysql.*;
 import com.actiontech.dble.net.service.ServiceTask;
 import com.actiontech.dble.route.RouteResultsetNode;
 import com.actiontech.dble.route.parser.util.Pair;
@@ -81,6 +78,8 @@ public class MySQLResponseService extends MySQLBasedService {
     private volatile boolean isRowDataFlowing = false;
     private volatile BackEndCleaner recycler = null;
     private volatile TxState xaStatus = TxState.TX_INITIALIZE_STATE;
+    private boolean autocommitSynced;
+    private boolean isolationSynced;
 
     public MySQLResponseService(AbstractConnection connection) {
         super(connection);
@@ -444,6 +443,85 @@ public class MySQLResponseService extends MySQLBasedService {
         ((PooledConnection) connection).getPoolRelated().release((PooledConnection) connection);
     }
 
+    public String compactInfo() {
+        return "MySQLConnection host=" + connection.getHost() + ", port=" + connection.getPort() + ", schema=" + schema;
+    }
+
+    public void executeMultiNode(RouteResultsetNode rrn, MySQLShardingService service,
+                                 boolean isAutoCommit) {
+        String xaTxId = getConnXID(session.getSessionXaID(), rrn.getMultiplexNum().longValue());
+        if (!service.isAutocommit() && !service.isTxStart() && rrn.isModifySQL()) {
+            service.setTxStarted(true);
+        }
+        StringBuilder synSQL = getSynSql(xaTxId, rrn, service.getCharset(), service.getTxIsolation(), isAutoCommit, service.getUsrVariables(), service.getSysVariables());
+        synAndDoExecuteMultiNode(synSQL, rrn, service.getCharset());
+    }
+
+    public void execute(RouteResultsetNode rrn, MySQLShardingService service,
+                        boolean isAutoCommit) {
+        String xaTxId = getConnXID(session.getSessionXaID(), rrn.getMultiplexNum().longValue());
+        if (!service.isAutocommit() && !service.isTxStart() && rrn.isModifySQL()) {
+            service.setTxStarted(true);
+        }
+        StringBuilder synSQL = getSynSql(xaTxId, rrn, service.getCharset(), service.getTxIsolation(), isAutoCommit, service.getUsrVariables(), service.getSysVariables());
+        synAndDoExecute(synSQL, rrn, service.getCharset());
+    }
+
+
+    private void synAndDoExecuteMultiNode(StringBuilder synSQL, RouteResultsetNode rrn, CharsetNames clientCharset) {
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("send cmd by WriteToBackendExecutor to conn[" + this + "]");
+        }
+
+        if (synSQL == null) {
+            // not need syn connection
+            if (session != null) {
+                session.setBackendRequestTime(this.getConnection().getId());
+            }
+            DbleServer.getInstance().getWriteToBackendQueue().add(Collections.singletonList(sendQueryCmdTask(rrn.getStatement(), clientCharset)));
+            return;
+        }
+        // syn sharding
+        List<WriteToBackendTask> taskList = new ArrayList<>(1);
+        // and our query sql to multi command at last
+        synSQL.append(rrn.getStatement()).append(";");
+        // syn and execute others
+        if (session != null) {
+            session.setBackendRequestTime(this.getConnection().getId());
+        }
+        taskList.add(sendQueryCmdTask(synSQL.toString(), clientCharset));
+        DbleServer.getInstance().getWriteToBackendQueue().add(taskList);
+        // waiting syn result...
+
+    }
+
+    public void resetContextStatus() {
+        if (isolationSynced) {
+            this.txIsolation = SystemConfig.getInstance().getTxIsolation();
+        } else {
+            this.txIsolation = -1;
+        }
+        boolean sysAutocommit = SystemConfig.getInstance().getAutocommit() == 1;
+        this.autocommit = sysAutocommit == autocommitSynced; // T + T-> T, T + F-> F, F +T ->F, F + F->T
+        this.connection.initCharacterSet(SystemConfig.getInstance().getCharset());
+        this.usrVariables.clear();
+        this.sysVariables.clear();
+    }
+
+    private WriteToBackendTask sendQueryCmdTask(String query, CharsetNames clientCharset) {
+        CommandPacket packet = new CommandPacket();
+        packet.setPacketId(0);
+        packet.setCommand(MySQLPacket.COM_QUERY);
+        try {
+            packet.setArg(query.getBytes(CharsetUtil.getJavaCharset(clientCharset.getClient())));
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+        isExecuting = true;
+        lastTime = TimeUtil.currentTimeMillis();
+        return new WriteToBackendTask(this, packet);
+    }
+
 
     public BackendConnection getConnection() {
         return (BackendConnection) connection;
@@ -562,6 +640,13 @@ public class MySQLResponseService extends MySQLBasedService {
     }
 
 
+    public boolean isExecuting() {
+        return isExecuting;
+    }
+
+    public void setExecuting(boolean executing) {
+        isExecuting = executing;
+    }
 
     private static class StatusSync {
         private final String schema;

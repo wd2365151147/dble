@@ -3,6 +3,7 @@ package com.actiontech.dble.backend.mysql.nio.handler.transaction;
 import com.actiontech.dble.net.connection.BackendConnection;
 import com.actiontech.dble.route.RouteResultsetNode;
 import com.actiontech.dble.server.NonBlockingSession;
+import com.actiontech.dble.services.mysqlsharding.MySQLResponseService;
 
 import java.util.List;
 
@@ -12,9 +13,9 @@ public class AutoCommitHandler implements TransactionHandler {
     private TransactionHandler realHandler;
     private final byte[] sendData;
     private final RouteResultsetNode[] nodes;
-    private final List<BackendConnection> errConnection;
+    private final List<MySQLResponseService> errConnection;
 
-    public AutoCommitHandler(NonBlockingSession session, byte[] packet, RouteResultsetNode[] nodes, List<BackendConnection> errConnection) {
+    public AutoCommitHandler(NonBlockingSession session, byte[] packet, RouteResultsetNode[] nodes, List<MySQLResponseService> errConnection) {
         this.session = session;
         this.sendData = packet;
         this.nodes = nodes;
@@ -35,8 +36,8 @@ public class AutoCommitHandler implements TransactionHandler {
     @Override
     public void rollback() {
         if (errConnection != null && nodes.length == errConnection.size()) {
-            for (BackendConnection conn : errConnection) {
-                conn.close(" rollback all connection error");
+            for (MySQLResponseService service : errConnection) {
+                service.getConnection().close(" rollback all connection error");
             }
             session.getTargetMap().clear();
             errConnection.clear();

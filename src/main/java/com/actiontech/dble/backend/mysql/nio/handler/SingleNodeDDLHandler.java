@@ -23,7 +23,7 @@ public class SingleNodeDDLHandler extends SingleNodeHandler {
     }
 
     public void execute() throws Exception {
-        DDLTraceManager.getInstance().updateDDLStatus(DDLTraceInfo.DDLStage.EXECUTE_START, session.getFrontConnection());
+        DDLTraceManager.getInstance().updateDDLStatus(DDLTraceInfo.DDLStage.EXECUTE_START, session.getShardingService());
         try {
             super.execute();
         } catch (Exception e) {

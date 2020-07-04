@@ -73,7 +73,7 @@ public class MergeBuilder {
         }
         DruidSingleUnitSelectParser druidParser = new DruidSingleUnitSelectParser();
         druidParser.setSchemaMap(tableConfigMap);
-        return RouterUtil.routeFromParserComplex(schemaConfig, druidParser, tableConfigMap, rrs, select, new ServerSchemaStatVisitor(), session.getFrontConnection());
+        return RouterUtil.routeFromParserComplex(schemaConfig, druidParser, tableConfigMap, rrs, select, new ServerSchemaStatVisitor(), session.getShardingService());
     }
 
     /* -------------------- getter/setter -------------------- */

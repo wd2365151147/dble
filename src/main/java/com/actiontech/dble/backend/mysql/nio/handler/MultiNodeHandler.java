@@ -7,6 +7,7 @@ package com.actiontech.dble.backend.mysql.nio.handler;
 
 import com.actiontech.dble.config.ErrorCode;
 import com.actiontech.dble.net.mysql.ErrorPacket;
+import com.actiontech.dble.net.service.AbstractService;
 import com.actiontech.dble.route.RouteResultsetNode;
 import com.actiontech.dble.server.NonBlockingSession;
 import com.actiontech.dble.services.mysqlsharding.MySQLResponseService;
@@ -166,15 +167,15 @@ public abstract class MultiNodeHandler implements ResponseHandler {
         }
     }
 
-    public void connectionClose(MySQLResponseService service, String reason) {
+    public void connectionClose(AbstractService service, String reason) {
         this.setFail("closed connection:" + reason + " con:" + service.toString());
         if (error == null) {
             error = "back connection closed ";
         }
-        RouteResultsetNode rNode = (RouteResultsetNode) service.getAttachment();
+        RouteResultsetNode rNode = (RouteResultsetNode) ((MySQLResponseService) service).getAttachment();
         session.getTargetMap().remove(rNode);
-        service.setResponseHandler(null);
-        tryErrorFinished(decrementToZero(service));
+        ((MySQLResponseService) service).setResponseHandler(null);
+        tryErrorFinished(decrementToZero((MySQLResponseService) service));
     }
 
     public void clearResources() {

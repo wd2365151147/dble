@@ -1,6 +1,5 @@
 package com.actiontech.dble.net.connection;
 
-import com.actiontech.dble.backend.BackendConnection;
 import com.actiontech.dble.net.SocketWR;
 import com.actiontech.dble.net.service.AuthResultInfo;
 

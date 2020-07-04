@@ -16,10 +16,13 @@ import com.actiontech.dble.net.mysql.AuthPacket;
 import com.actiontech.dble.net.mysql.ErrorPacket;
 import com.actiontech.dble.net.mysql.MySQLPacket;
 import com.actiontech.dble.net.service.AuthResultInfo;
+import com.actiontech.dble.route.parser.util.Pair;
 import com.actiontech.dble.server.NonBlockingSession;
 import com.actiontech.dble.server.ServerQueryHandler;
 import com.actiontech.dble.server.handler.ServerLoadDataInfileHandler;
 import com.actiontech.dble.server.handler.ServerPrepareHandler;
+import com.actiontech.dble.server.handler.SetHandler;
+import com.actiontech.dble.server.handler.SetInnerHandler;
 import com.actiontech.dble.server.parser.ServerParse;
 import com.actiontech.dble.server.response.InformationSchemaProfiling;
 import com.actiontech.dble.server.util.SchemaUtil;
@@ -30,9 +33,7 @@ import com.actiontech.dble.util.TimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -89,6 +90,10 @@ public class MySQLShardingService extends MySQLBasedService {
 
     private final NonBlockingSession session;
 
+    private boolean sessionReadOnly = false;
+
+    private List<Pair<SetHandler.KeyType, Pair<String, String>>> contextTask = new ArrayList<>();
+    private List<Pair<SetHandler.KeyType, Pair<String, String>>> innerSetTask = new ArrayList<>();
 
     public MySQLShardingService(AbstractConnection connection) {
         super(connection);
@@ -324,6 +329,96 @@ public class MySQLShardingService extends MySQLBasedService {
         }
     }
 
+    public void executeContextSetTask() {
+        for (Pair<SetHandler.KeyType, Pair<String, String>> task : contextTask) {
+            switch (task.getKey()) {
+                case CHARACTER_SET_CLIENT:
+                    String charsetClient = task.getValue().getKey();
+                    this.setCharacterClient(charsetClient);
+                    break;
+                case CHARACTER_SET_CONNECTION:
+                    String collationName = task.getValue().getKey();
+                    this.setCharacterConnection(collationName);
+                    break;
+                case CHARACTER_SET_RESULTS:
+                    String charsetResult = task.getValue().getKey();
+                    this.setCharacterResults(charsetResult);
+                    break;
+                case COLLATION_CONNECTION:
+                    String collation = task.getValue().getKey();
+                    this.setCollationConnection(collation);
+                    break;
+                case TX_ISOLATION:
+                    String isolationLevel = task.getValue().getKey();
+                    this.setTxIsolation(Integer.parseInt(isolationLevel));
+                    break;
+                case TX_READ_ONLY:
+                    String enable = task.getValue().getKey();
+                    this.setSessionReadOnly(Boolean.parseBoolean(enable));
+                    break;
+                case SYSTEM_VARIABLES:
+                    this.sysVariables.put(task.getValue().getKey(), task.getValue().getValue());
+                    break;
+                case USER_VARIABLES:
+                    this.usrVariables.put(task.getValue().getKey(), task.getValue().getValue());
+                    break;
+                case CHARSET:
+                    this.setCharacterSet(task.getValue().getKey());
+                    break;
+                case NAMES:
+                    this.setNames(task.getValue().getKey(), task.getValue().getValue());
+                    break;
+                default:
+                    //can't happen
+                    break;
+            }
+        }
+    }
+
+    public boolean executeInnerSetTask() {
+        Pair<SetHandler.KeyType, Pair<String, String>> autoCommitTask = null;
+        for (Pair<SetHandler.KeyType, Pair<String, String>> task : innerSetTask) {
+            switch (task.getKey()) {
+                case XA:
+                    //session.getTransactionManager().setXaTxEnabled(Boolean.valueOf(task.getValue().getKey()), this);
+                    break;
+                case AUTOCOMMIT:
+                    autoCommitTask = task;
+                    break;
+                case TRACE:
+                    session.setTrace(Boolean.valueOf(task.getValue().getKey()));
+                    break;
+                default:
+            }
+        }
+
+        if (autoCommitTask != null) {
+            return SetInnerHandler.execSetAutoCommit(executeSql, this, Boolean.valueOf(autoCommitTask.getValue().getKey()));
+        }
+        return false;
+    }
+
+
+    public void setCollationConnection(String collation) {
+        connection.getCharsetName().setCollation(collation);
+    }
+
+    public void setCharacterResults(String name) {
+        connection.getCharsetName().setResults(name);
+    }
+
+    public void setCharacterConnection(String collationName) {
+        connection.getCharsetName().setCollation(collationName);
+    }
+
+    public void setNames(String name, String collationName) {
+        connection.getCharsetName().setNames(name, collationName);
+    }
+
+    public void setCharacterClient(String name) {
+        connection.getCharsetName().setClient(name);
+    }
+
     public int getTxIsolation() {
         return txIsolation;
     }
@@ -430,6 +525,10 @@ public class MySQLShardingService extends MySQLBasedService {
         return txID.getAndIncrement();
     }
 
+    public long getXid() {
+        return txID.get();
+    }
+
 
     public Map<String, String> getUsrVariables() {
         return usrVariables;
@@ -439,7 +538,52 @@ public class MySQLShardingService extends MySQLBasedService {
         this.usrVariables = usrVariables;
     }
 
+    public long getLastInsertId() {
+        return lastInsertId;
+    }
+
+    public void setLastInsertId(long lastInsertId) {
+        this.lastInsertId = lastInsertId;
+    }
+
     public void updateLastReadTime() {
         this.lastReadTime = TimeUtil.currentTimeMillis();
+    }
+
+    public void setSessionReadOnly(boolean sessionReadOnly) {
+        this.sessionReadOnly = sessionReadOnly;
+    }
+
+    public boolean isReadOnly() {
+        return sessionReadOnly;
+    }
+
+
+    public ServerLoadDataInfileHandler getLoadDataInfileHandler() {
+        return loadDataInfileHandler;
+    }
+
+    public Map<String, String> getSysVariables() {
+        return sysVariables;
+    }
+
+    public void setSysVariables(Map<String, String> sysVariables) {
+        this.sysVariables = sysVariables;
+    }
+
+    public List<Pair<SetHandler.KeyType, Pair<String, String>>> getContextTask() {
+        return contextTask;
+    }
+
+    public void setContextTask(List<Pair<SetHandler.KeyType, Pair<String, String>>> contextTask) {
+        this.contextTask = contextTask;
+    }
+
+    public List<Pair<SetHandler.KeyType, Pair<String, String>>> getInnerSetTask() {
+        return innerSetTask;
+    }
+
+    public void setInnerSetTask(List<Pair<SetHandler.KeyType, Pair<String, String>>> innerSetTask) {
+        this.innerSetTask = innerSetTask;
     }
 }

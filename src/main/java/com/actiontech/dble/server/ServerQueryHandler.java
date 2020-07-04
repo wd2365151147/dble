@@ -92,7 +92,7 @@ public class ServerQueryHandler implements FrontendQueryHandler {
                 case ServerParse.DESCRIBE:
                     DescribeHandler.handle(sql, service);
                     break;
-                /*case ServerParse.SET: todo serverQueryHandler tru usage need be change
+                case ServerParse.SET:
                     SetHandler.handle(sql, service, rs >>> 8);
                     break;
                 case ServerParse.SHOW:
@@ -172,7 +172,7 @@ public class ServerQueryHandler implements FrontendQueryHandler {
                 case ServerParse.UNSUPPORT:
                     LOGGER.info("Unsupported statement:" + sql);
                     service.writeErrMessage(ErrorCode.ER_SYNTAX_ERROR, "Unsupported statement");
-                    break;*/
+                    break;
                 default:
                     if (readOnly) {
                         service.writeErrMessage(ErrorCode.ER_USER_READ_ONLY, "User READ ONLY");

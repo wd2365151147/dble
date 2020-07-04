@@ -14,33 +14,34 @@ import com.actiontech.dble.route.util.RouterUtil;
 import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.parser.ServerParse;
 import com.actiontech.dble.server.util.SchemaUtil;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 
 public final class ShowVariables {
     private ShowVariables() {
     }
 
-    public static void response(ServerConnection c, String stmt) {
-        String db = c.getSchema() != null ? c.getSchema() : SchemaUtil.getRandomDb();
+    public static void response(MySQLShardingService shardingService, String stmt) {
+        String db = shardingService.getSchema() != null ? shardingService.getSchema() : SchemaUtil.getRandomDb();
 
         SchemaConfig schema = DbleServer.getInstance().getConfig().getSchemas().get(db);
         if (schema == null) {
-            c.writeErrMessage("42000", "Unknown database '" + db + "'", ErrorCode.ER_BAD_DB_ERROR);
+            shardingService.writeErrMessage("42000", "Unknown database '" + db + "'", ErrorCode.ER_BAD_DB_ERROR);
             return;
         }
 
         RouteResultset rrs = new RouteResultset(stmt, ServerParse.SHOW);
         try {
             RouterUtil.routeToSingleNode(rrs, schema.getRandomShardingNode());
-            ShowVariablesHandler handler = new ShowVariablesHandler(rrs, c.getSession2());
+            ShowVariablesHandler handler = new ShowVariablesHandler(rrs, shardingService.getSession2());
             try {
                 handler.execute();
             } catch (Exception e1) {
                 handler.recycleBuffer();
-                c.writeErrMessage(ErrorCode.ER_PARSE_ERROR, e1.toString());
+                shardingService.writeErrMessage(ErrorCode.ER_PARSE_ERROR, e1.toString());
             }
         } catch (Exception e) {
             // Could this only be ER_PARSE_ERROR?
-            c.writeErrMessage(ErrorCode.ER_PARSE_ERROR, e.toString());
+            shardingService.writeErrMessage(ErrorCode.ER_PARSE_ERROR, e.toString());
         }
     }
 }

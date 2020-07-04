@@ -20,6 +20,7 @@ import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.response.PackageBufINf;
 import com.actiontech.dble.server.response.ShowTables;
 import com.actiontech.dble.server.response.ShowTablesStmtInfo;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.singleton.ProxyMeta;
 import com.actiontech.dble.util.StringUtil;
 
@@ -41,19 +42,19 @@ public class ShowTablesHandler extends SingleNodeHandler {
         super(rrs, session);
         buffer = session.getFrontConnection().allocate();
         this.info = info;
-        ServerConnection source = session.getFrontConnection();
+        MySQLShardingService shardingService = session.getShardingService();
         String showSchema = info.getSchema();
         if (showSchema != null && DbleServer.getInstance().getSystemVariables().isLowerCaseTableNames()) {
             showSchema = showSchema.toLowerCase();
         }
-        showTableSchema = showSchema == null ? source.getSchema() : showSchema;
+        showTableSchema = showSchema == null ? shardingService.getSchema() : showSchema;
         shardingTablesMap = ShowTables.getTableSet(showTableSchema, info);
     }
 
     @Override
     public void fieldEofResponse(byte[] header, List<byte[]> fields, List<FieldPacket> fieldPacketsNull, byte[] eof,
                                  boolean isLeft, BackendConnection conn) {
-        ServerConnection source = session.getFrontConnection();
+        MySQLShardingService shardingService = session.getShardingService();
         PackageBufINf bufInf;
         lock.lock();
         try {
@@ -66,24 +67,24 @@ public class ShowTablesHandler extends SingleNodeHandler {
             }
             if (info.isFull()) {
                 List<FieldPacket> fieldPackets = new ArrayList<>(2);
-                bufInf = ShowTables.writeFullTablesHeader(buffer, source, schemaColumn, fieldPackets);
+                bufInf = ShowTables.writeFullTablesHeader(buffer, shardingService, schemaColumn, fieldPackets);
                 packetId = bufInf.getPacketId();
                 buffer = bufInf.getBuffer();
                 if (info.getWhere() != null) {
-                    MySQLItemVisitor mev = new MySQLItemVisitor(source.getSchema(), source.getCharset().getResultsIndex(), ProxyMeta.getInstance().getTmManager(), source.getUsrVariables());
+                    MySQLItemVisitor mev = new MySQLItemVisitor(shardingService.getSchema(), shardingService.getCharset().getResultsIndex(), ProxyMeta.getInstance().getTmManager(), source.getUsrVariables());
                     info.getWhereExpr().accept(mev);
                     sourceFields = HandlerTool.createFields(fieldPackets);
                     whereItem = HandlerTool.createItem(mev.getItem(), sourceFields, 0, false, DMLResponseHandler.HandlerType.WHERE);
-                    bufInf = ShowTables.writeFullTablesRow(buffer, source, shardingTablesMap, packetId, whereItem, sourceFields);
+                    bufInf = ShowTables.writeFullTablesRow(buffer, shardingService, shardingTablesMap, packetId, whereItem, sourceFields);
                     packetId = bufInf.getPacketId();
                     buffer = bufInf.getBuffer();
                 } else {
-                    bufInf = ShowTables.writeFullTablesRow(buffer, source, shardingTablesMap, packetId, null, null);
+                    bufInf = ShowTables.writeFullTablesRow(buffer, shardingService, shardingTablesMap, packetId, null, null);
                     packetId = bufInf.getPacketId();
                     buffer = bufInf.getBuffer();
                 }
             } else {
-                bufInf = ShowTables.writeTablesHeaderAndRows(buffer, source, shardingTablesMap, schemaColumn);
+                bufInf = ShowTables.writeTablesHeaderAndRows(buffer, shardingService, shardingTablesMap, schemaColumn);
                 packetId = bufInf.getPacketId();
                 buffer = bufInf.getBuffer();
             }

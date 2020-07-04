@@ -39,10 +39,10 @@ public class KillConnectionHandler implements ResponseHandler {
 
     @Override
     public void connectionAcquired(BackendConnection conn) {
-        MySQLResponseService service  = (MySQLResponseService) conn.getService();
+        MySQLResponseService service = (MySQLResponseService) conn.getService();
         service.setResponseHandler(this);
         service.setSession(session);
-        service.sendQueryCmd(("KILL " + toKilled.getThreadId()), session.getFrontConnection().getCharset());
+        service.sendQueryCmd(("KILL " + toKilled.getThreadId()), session.getShardingService().getCharset());
     }
 
     @Override
@@ -57,49 +57,49 @@ public class KillConnectionHandler implements ResponseHandler {
             LOGGER.debug("kill connection success connection id:" +
                     toKilled.getThreadId());
         }
-        service.release();
+        ((MySQLResponseService) service).getConnection().release();
         toKilled.close("killed");
 
     }
 
     @Override
-    public void rowEofResponse(byte[] eof, boolean isLeft, BackendConnection conn) {
+    public void rowEofResponse(byte[] eof, boolean isLeft, AbstractService service) {
         LOGGER.info("unexpected packet for " +
-                conn + " bound by " + session.getFrontConnection() +
+                service + " bound by " + session.getFrontConnection() +
                 ": field's eof");
-        conn.close("close unexpected packet of killConnection");
+        service.getConnection().close("close unexpected packet of killConnection");
         toKilled.close("killed");
     }
 
     @Override
-    public void errorResponse(byte[] data, BackendConnection conn) {
+    public void errorResponse(byte[] data, AbstractService service) {
         ErrorPacket err = new ErrorPacket();
         err.read(data);
         String msg;
         try {
-            msg = new String(err.getMessage(), CharsetUtil.getJavaCharset(conn.getCharset().getResults()));
+            msg = new String(err.getMessage(), CharsetUtil.getJavaCharset(service.getConnection().getCharsetName().getResults()));
         } catch (UnsupportedEncodingException e) {
             msg = new String(err.getMessage());
         }
-        LOGGER.info("kill backend connection " + toKilled + " failed: " + msg + " con:" + conn);
-        AlertUtil.alertSelf(AlarmCode.KILL_BACKEND_CONN_FAIL, Alert.AlertLevel.NOTICE, "get killer connection " + conn.toString() + " failed: " + msg, null);
-        conn.release();
+        LOGGER.info("kill backend connection " + toKilled + " failed: " + msg + " con:" + service);
+        AlertUtil.alertSelf(AlarmCode.KILL_BACKEND_CONN_FAIL, Alert.AlertLevel.NOTICE, "get killer connection " + service.toString() + " failed: " + msg, null);
+        ((MySQLResponseService) service).release();
         toKilled.close("exception:" + msg);
     }
 
     @Override
     public void fieldEofResponse(byte[] header, List<byte[]> fields, List<FieldPacket> fieldPackets, byte[] eof,
-                                 boolean isLeft, BackendConnection conn) {
+                                 boolean isLeft, AbstractService service) {
     }
 
     @Override
-    public boolean rowResponse(byte[] row, RowDataPacket rowPacket, boolean isLeft, BackendConnection conn) {
+    public boolean rowResponse(byte[] row, RowDataPacket rowPacket, boolean isLeft, AbstractService service) {
         return false;
     }
 
     @Override
-    public void connectionClose(BackendConnection conn, String reason) {
-        AlertUtil.alertSelf(AlarmCode.KILL_BACKEND_CONN_FAIL, Alert.AlertLevel.NOTICE, "get killer connection " + conn.toString() + " failed: connectionClosed", null);
+    public void connectionClose(AbstractService service, String reason) {
+        AlertUtil.alertSelf(AlarmCode.KILL_BACKEND_CONN_FAIL, Alert.AlertLevel.NOTICE, "get killer connection " + service.toString() + " failed: connectionClosed", null);
         toKilled.close("exception:" + reason);
     }
 }

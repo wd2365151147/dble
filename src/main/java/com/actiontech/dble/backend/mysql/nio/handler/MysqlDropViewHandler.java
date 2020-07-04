@@ -6,12 +6,12 @@
 package com.actiontech.dble.backend.mysql.nio.handler;
 
 import com.actiontech.dble.DbleServer;
-import com.actiontech.dble.backend.BackendConnection;
 import com.actiontech.dble.backend.datasource.ShardingNode;
 import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
 import com.actiontech.dble.config.ErrorCode;
 import com.actiontech.dble.config.model.user.UserName;
 import com.actiontech.dble.meta.ViewMeta;
+import com.actiontech.dble.net.connection.BackendConnection;
 import com.actiontech.dble.net.mysql.ErrorPacket;
 import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.OkPacket;
@@ -54,7 +54,7 @@ public class MysqlDropViewHandler implements ResponseHandler {
         } else {
             // create new connection
             ShardingNode dn = DbleServer.getInstance().getConfig().getShardingNodes().get(node.getName());
-            dn.getConnection(dn.getDatabase(), session.getFrontConnection().isTxStart(), session.getFrontConnection().isAutocommit(), node, this, node);
+            dn.getConnection(dn.getDatabase(), session.getShardingService().isTxStart(), session.getShardingService().isAutocommit(), node, this, node);
         }
     }
 
@@ -63,9 +63,9 @@ public class MysqlDropViewHandler implements ResponseHandler {
     }
 
     private void innerExecute(BackendConnection conn, RouteResultsetNode node) {
-        conn.setResponseHandler(this);
-        conn.setSession(session);
-        conn.execute(node, session.getFrontConnection(), session.getFrontConnection().isAutocommit());
+        conn.getBackendService().setResponseHandler(this);
+        conn.getBackendService().setSession(session);
+        conn.getBackendService().execute(node, session.getFrontConnection(), session.getShardingService().isAutocommit());
     }
 
     @Override

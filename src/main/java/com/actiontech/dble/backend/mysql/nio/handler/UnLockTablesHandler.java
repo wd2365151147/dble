@@ -5,7 +5,7 @@
 
 package com.actiontech.dble.backend.mysql.nio.handler;
 
-import com.actiontech.dble.backend.BackendConnection;
+import com.actiontech.dble.net.connection.BackendConnection;
 import com.actiontech.dble.net.mysql.ErrorPacket;
 import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.OkPacket;
@@ -47,7 +47,7 @@ public class UnLockTablesHandler extends MultiNodeHandler implements ResponseHan
             OkPacket ok = new OkPacket();
             ok.setPacketId(++packetId);
             ok.setPacketLength(7); // the size of unlock table's response OK packet is 7
-            ok.setServerStatus(session.getFrontConnection().isAutocommit() ? 2 : 1);
+            ok.setServerStatus(session.getShardingService().isAutocommit() ? 2 : 1);
             ok.write(session.getFrontConnection());
             return;
         }
@@ -65,8 +65,8 @@ public class UnLockTablesHandler extends MultiNodeHandler implements ResponseHan
             if (clearIfSessionClosed(session)) {
                 return;
             }
-            conn.setResponseHandler(this);
-            conn.setSession(session);
+            conn.getShardingService().setResponseHandler(this);
+            conn.getShardingService().setSession(session);
             try {
                 conn.execute(node, session.getFrontConnection(), autocommit);
             } catch (Exception e) {

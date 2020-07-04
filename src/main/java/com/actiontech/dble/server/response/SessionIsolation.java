@@ -13,6 +13,7 @@ import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.ResultSetHeaderPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
 import com.actiontech.dble.server.ServerConnection;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.StringUtil;
 
 import java.nio.ByteBuffer;
@@ -30,24 +31,24 @@ public final class SessionIsolation {
     private static final EOFPacket EOF = new EOFPacket();
 
 
-    public static void response(ServerConnection c, String column) {
-        byte packetId = setCurrentPacket(c);
+    public static void response(MySQLShardingService service, String column) {
+        byte packetId = setCurrentPacket(service);
         HEADER.setPacketId(++packetId);
         FIELDS[0] = PacketUtil.getField(column, Fields.FIELD_TYPE_STRING);
         FIELDS[0].setPacketId(++packetId);
         EOF.setPacketId(++packetId);
 
-        ByteBuffer buffer = c.allocate();
-        buffer = HEADER.write(buffer, c, true);
+        ByteBuffer buffer = service.allocate();
+        buffer = HEADER.write(buffer, service, true);
         for (FieldPacket field : FIELDS) {
-            buffer = field.write(buffer, c, true);
+            buffer = field.write(buffer, service, true);
         }
-        buffer = EOF.write(buffer, c, true);
+        buffer = EOF.write(buffer, service, true);
 
         RowDataPacket row = new RowDataPacket(FIELD_COUNT);
 
         String value = "";
-        switch (c.getTxIsolation()) {
+        switch (service.getTxIsolation()) {
             case Isolations.READ_COMMITTED:
                 value = "READ-COMMITTED";
                 break;
@@ -63,20 +64,20 @@ public final class SessionIsolation {
             default:
                 break;
         }
-        row.add(StringUtil.encode(value, c.getCharset().getResults()));
+        row.add(StringUtil.encode(value, service.getCharset().getResults()));
         row.setPacketId(++packetId);
-        buffer = row.write(buffer, c, true);
+        buffer = row.write(buffer, service, true);
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
-        c.getSession2().multiStatementPacket(lastEof, packetId);
-        buffer = lastEof.write(buffer, c, true);
-        boolean multiStatementFlag = c.getSession2().getIsMultiStatement().get();
-        c.write(buffer);
-        c.getSession2().multiStatementNextSql(multiStatementFlag);
+        service.getSession2().multiStatementPacket(lastEof, packetId);
+        buffer = lastEof.write(buffer, service, true);
+        boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
+        service.write(buffer);
+        service.getSession2().multiStatementNextSql(multiStatementFlag);
     }
 
-    public static byte setCurrentPacket(ServerConnection c) {
-        byte packetId = (byte) c.getSession2().getPacketId().get();
+    public static byte setCurrentPacket(MySQLShardingService service) {
+        byte packetId = (byte) service.getSession2().getPacketId().get();
         return packetId;
     }
 

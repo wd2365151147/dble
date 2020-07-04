@@ -1,7 +1,6 @@
 package com.actiontech.dble.net.connection;
 
 import com.actiontech.dble.DbleServer;
-import com.actiontech.dble.backend.BackendConnection;
 import com.actiontech.dble.backend.mysql.CharsetUtil;
 import com.actiontech.dble.config.model.SystemConfig;
 import com.actiontech.dble.net.IOProcessor;
@@ -10,7 +9,6 @@ import com.actiontech.dble.net.mysql.CharsetNames;
 import com.actiontech.dble.net.service.AbstractService;
 import com.actiontech.dble.net.service.AuthResultInfo;
 import com.actiontech.dble.net.service.Service;
-import com.actiontech.dble.services.mysqlsharding.MySQLResponseService;
 import com.actiontech.dble.util.TimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

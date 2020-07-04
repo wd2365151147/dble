@@ -673,10 +673,10 @@ public class ServerConnection extends FrontendConnection {
         if (txInterrupted) {
             writeErrMessage(ErrorCode.ER_YES, txInterruptMsg);
         } else {
-            TxnLogHelper.putTxnLog(this, "commit[because of " + stmt + "]");
+            TxnLogHelper.putTxnLog(session.getShardingService(), "commit[because of " + stmt + "]");
             this.txChainBegin = true;
             session.commit();
-            TxnLogHelper.putTxnLog(this, stmt);
+            TxnLogHelper.putTxnLog(session.getShardingService(), stmt);
         }
     }
 
@@ -684,7 +684,7 @@ public class ServerConnection extends FrontendConnection {
         if (txInterrupted) {
             writeErrMessage(ErrorCode.ER_YES, txInterruptMsg);
         } else {
-            TxnLogHelper.putTxnLog(this, logReason);
+            TxnLogHelper.putTxnLog(session.getShardingService(), logReason);
             session.commit();
         }
     }

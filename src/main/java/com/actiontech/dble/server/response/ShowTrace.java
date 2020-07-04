@@ -12,6 +12,7 @@ import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.ResultSetHeaderPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
 import com.actiontech.dble.server.ServerConnection;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.StringUtil;
 
 import java.nio.ByteBuffer;
@@ -31,42 +32,42 @@ public final class ShowTrace {
         FIELDS[4] = PacketUtil.getField("SHARDING_NODE", Fields.FIELD_TYPE_VAR_STRING);
         FIELDS[5] = PacketUtil.getField("SQL/REF", Fields.FIELD_TYPE_VAR_STRING);
     }
-    public static void response(ServerConnection c) {
-        ByteBuffer buffer = c.allocate();
+    public static void response(MySQLShardingService shardingService) {
+        ByteBuffer buffer = shardingService.allocate();
 
         // write header
         ResultSetHeaderPacket header = PacketUtil.getHeader(FIELD_COUNT);
         byte packetId = header.getPacketId();
-        buffer = header.write(buffer, c, true);
+        buffer = header.write(buffer, shardingService, true);
 
         // write fields
         for (FieldPacket field : FIELDS) {
             field.setPacketId(++packetId);
-            buffer = field.write(buffer, c, true);
+            buffer = field.write(buffer, shardingService, true);
         }
 
         // write eof
         EOFPacket eof = new EOFPacket();
         eof.setPacketId(++packetId);
-        buffer = eof.write(buffer, c, true);
+        buffer = eof.write(buffer, shardingService, true);
 
-        List<String[]> results = c.getSession2().genTraceResult();
+        List<String[]> results = shardingService.getSession2().genTraceResult();
         if (results != null) {
             for (String[] result : results) {
                 RowDataPacket row = new RowDataPacket(FIELD_COUNT);
                 for (int i = 0; i < FIELD_COUNT; i++) {
-                    row.add(StringUtil.encode(result[i], c.getCharset().getResults()));
+                    row.add(StringUtil.encode(result[i], shardingService.getCharset().getResults()));
                 }
                 row.setPacketId(++packetId);
-                buffer = row.write(buffer, c, true);
+                buffer = row.write(buffer, shardingService, true);
             }
         }
         // write last eof
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
-        buffer = lastEof.write(buffer, c, true);
+        buffer = lastEof.write(buffer, shardingService, true);
 
         // post write
-        c.write(buffer);
+        shardingService.write(buffer);
     }
 }

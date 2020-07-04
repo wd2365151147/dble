@@ -10,6 +10,7 @@ import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
 import com.actiontech.dble.config.model.SystemConfig;
 import com.actiontech.dble.net.mysql.BinaryPacket;
 import com.actiontech.dble.route.RouteResultsetNode;
+import com.actiontech.dble.services.mysqlsharding.MySQLResponseService;
 import com.actiontech.dble.singleton.WriteQueueFlowController;
 import com.actiontech.dble.sqlengine.mpp.LoadData;
 
@@ -23,13 +24,12 @@ public final class LoadDataUtil {
     private LoadDataUtil() {
     }
 
-    public static void requestFileDataResponse(byte[] data, BackendConnection conn) {
+    public static void requestFileDataResponse(byte[] data, MySQLResponseService service) {
         byte packId = data[3];
-        MySQLConnection c = (MySQLConnection) conn;
-        RouteResultsetNode rrn = (RouteResultsetNode) conn.getAttachment();
+        RouteResultsetNode rrn = (RouteResultsetNode) service.getAttachment();
         LoadData loadData = rrn.getLoadData();
         List<String> loadDataData = loadData.getData();
-        conn.setExecuting(false);
+        service.setExecuting(false);
         BufferedInputStream in = null;
         try {
             if (loadDataData != null && loadDataData.size() > 0) {
@@ -39,10 +39,10 @@ public final class LoadDataUtil {
                     byte[] bytes = s.getBytes(CharsetUtil.getJavaCharset(loadData.getCharset()));
                     bos.write(bytes);
                 }
-                packId = writeToBackConnection(packId, new ByteArrayInputStream(bos.toByteArray()), c);
+                packId = writeToBackConnection(packId, new ByteArrayInputStream(bos.toByteArray()), service);
             } else {
                 in = new BufferedInputStream(new FileInputStream(loadData.getFileName()));
-                packId = writeToBackConnection(packId, in, c);
+                packId = writeToBackConnection(packId, in, service);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -58,11 +58,11 @@ public final class LoadDataUtil {
             //send empty packet
             byte[] empty = new byte[]{0, 0, 0, 3};
             empty[3] = ++packId;
-            c.write(empty);
+            service.write(empty);
         }
     }
 
-    public static byte writeToBackConnection(byte packID, InputStream inputStream, MySQLConnection c) throws IOException {
+    public static byte writeToBackConnection(byte packID, InputStream inputStream, MySQLResponseService service) throws IOException {
         try {
             int packSize = SystemConfig.getInstance().getBufferPoolChunkSize() - 5;
             // int packSize = c.getMaxPacketSize() / 32;
@@ -71,7 +71,8 @@ public final class LoadDataUtil {
             int len = -1;
 
             while ((len = inputStream.read(buffer)) != -1) {
-                if (WriteQueueFlowController.isEnableFlowControl() &&
+                //todo 流量控制还是要注意下
+               /* if (WriteQueueFlowController.isEnableFlowControl() &&
                         c.getWriteQueue().size() > WriteQueueFlowController.getFlowStart()) {
                     c.startFlowControl(c);
                 }
@@ -81,7 +82,7 @@ public final class LoadDataUtil {
                     } catch (InterruptedException e) {
                         //ignore error
                     }
-                }
+                }*/
                 byte[] temp = null;
                 if (len == packSize) {
                     temp = buffer;
@@ -92,7 +93,7 @@ public final class LoadDataUtil {
                 BinaryPacket packet = new BinaryPacket();
                 packet.setPacketId(++packID);
                 packet.setData(temp);
-                packet.write(c);
+                packet.write(service);
             }
         } finally {
             inputStream.close();

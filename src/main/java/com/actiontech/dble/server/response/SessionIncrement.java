@@ -12,6 +12,7 @@ import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.ResultSetHeaderPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
 import com.actiontech.dble.server.ServerConnection;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.LongUtil;
 
 import java.nio.ByteBuffer;
@@ -28,37 +29,37 @@ public final class SessionIncrement {
     private static final FieldPacket[] FIELDS = new FieldPacket[FIELD_COUNT];
     private static final EOFPacket EOF = new EOFPacket();
 
-    public static void response(ServerConnection c) {
-        byte packetId = setCurrentPacket(c);
+    public static void response(MySQLShardingService shardingService) {
+        byte packetId = setCurrentPacket(shardingService);
         HEADER.setPacketId(++packetId);
         FIELDS[0] = PacketUtil.getField("@@session.auto_increment_increment", Fields.FIELD_TYPE_LONG);
         FIELDS[0].setPacketId(++packetId);
         EOF.setPacketId(++packetId);
 
 
-        ByteBuffer buffer = c.allocate();
-        buffer = HEADER.write(buffer, c, true);
+        ByteBuffer buffer = shardingService.allocate();
+        buffer = HEADER.write(buffer, shardingService, true);
         for (FieldPacket field : FIELDS) {
-            buffer = field.write(buffer, c, true);
+            buffer = field.write(buffer, shardingService, true);
         }
-        buffer = EOF.write(buffer, c, true);
+        buffer = EOF.write(buffer, shardingService, true);
 
         RowDataPacket row = new RowDataPacket(FIELD_COUNT);
         row.add(LongUtil.toBytes(1));
         row.setPacketId(++packetId);
-        buffer = row.write(buffer, c, true);
+        buffer = row.write(buffer, shardingService, true);
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
-        c.getSession2().multiStatementPacket(lastEof, packetId);
-        buffer = lastEof.write(buffer, c, true);
-        boolean multiStatementFlag = c.getSession2().getIsMultiStatement().get();
-        c.write(buffer);
-        c.getSession2().multiStatementNextSql(multiStatementFlag);
+        shardingService.getSession2().multiStatementPacket(lastEof, packetId);
+        buffer = lastEof.write(buffer, shardingService, true);
+        boolean multiStatementFlag = shardingService.getSession2().getIsMultiStatement().get();
+        shardingService.write(buffer);
+        shardingService.getSession2().multiStatementNextSql(multiStatementFlag);
     }
 
 
-    public static byte setCurrentPacket(ServerConnection c) {
-        byte packetId = (byte) c.getSession2().getPacketId().get();
+    public static byte setCurrentPacket(MySQLShardingService service) {
+        byte packetId = (byte) service.getSession2().getPacketId().get();
         return packetId;
     }
 

@@ -10,6 +10,7 @@ import com.actiontech.dble.backend.mysql.PacketUtil;
 import com.actiontech.dble.config.Fields;
 import com.actiontech.dble.net.mysql.*;
 import com.actiontech.dble.server.ServerConnection;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.StringUtil;
 
 import java.nio.ByteBuffer;
@@ -27,44 +28,44 @@ public final class SelectUser implements InnerFuncResponse {
     private static final EOFPacket EOF = new EOFPacket();
     private static final ErrorPacket ERROR = PacketUtil.getShutdown();
 
-    public static void response(ServerConnection c) {
+    public static void response(MySQLShardingService service) {
         if (DbleServer.getInstance().isOnline()) {
 
-            byte packetId = setCurrentPacket(c);
+            byte packetId = setCurrentPacket(service);
             HEADER.setPacketId(++packetId);
             FIELDS[0] = PacketUtil.getField("USER()", Fields.FIELD_TYPE_VAR_STRING);
             FIELDS[0].setPacketId(++packetId);
             EOF.setPacketId(++packetId);
 
-            ByteBuffer buffer = c.allocate();
-            buffer = HEADER.write(buffer, c, true);
+            ByteBuffer buffer = service.allocate();
+            buffer = HEADER.write(buffer, service, true);
             for (FieldPacket field : FIELDS) {
-                buffer = field.write(buffer, c, true);
+                buffer = field.write(buffer, service, true);
             }
-            buffer = EOF.write(buffer, c, true);
+            buffer = EOF.write(buffer, service, true);
 
             RowDataPacket row = new RowDataPacket(FIELD_COUNT);
-            row.add(getUser(c));
+            row.add(getUser(service));
             row.setPacketId(++packetId);
-            buffer = row.write(buffer, c, true);
+            buffer = row.write(buffer, service, true);
             EOFPacket lastEof = new EOFPacket();
             lastEof.setPacketId(++packetId);
-            c.getSession2().multiStatementPacket(lastEof, packetId);
-            buffer = lastEof.write(buffer, c, true);
-            boolean multiStatementFlag = c.getSession2().getIsMultiStatement().get();
-            c.write(buffer);
-            c.getSession2().multiStatementNextSql(multiStatementFlag);
+            service.getSession2().multiStatementPacket(lastEof, packetId);
+            buffer = lastEof.write(buffer, service, true);
+            boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
+            service.write(buffer);
+            service.getSession2().multiStatementNextSql(multiStatementFlag);
         } else {
-            ERROR.write(c);
+            ERROR.write(service.getConnection());
         }
     }
 
-    private static byte[] getUser(ServerConnection c) {
-        return StringUtil.encode(c.getUser().toString() + '@' + c.getHost(), c.getCharset().getResults());
+    private static byte[] getUser(MySQLShardingService service) {
+        return StringUtil.encode(service.getUser().toString() + '@' + service.getConnection().getHost(), service.getCharset().getResults());
     }
 
-    public static byte setCurrentPacket(ServerConnection c) {
-        byte packetId = (byte) c.getSession2().getPacketId().get();
+    public static byte setCurrentPacket(MySQLShardingService service) {
+        byte packetId = (byte) service.getSession2().getPacketId().get();
         return packetId;
     }
 
@@ -74,10 +75,10 @@ public final class SelectUser implements InnerFuncResponse {
         return result;
     }
 
-    public List<RowDataPacket> getRows(ServerConnection c) {
+    public List<RowDataPacket> getRows(MySQLShardingService service) {
         List<RowDataPacket> result = new ArrayList<>();
         RowDataPacket row = new RowDataPacket(FIELD_COUNT);
-        row.add(getUser(c));
+        row.add(getUser(service));
         result.add(row);
         return result;
     }

@@ -17,6 +17,7 @@ import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.ResultSetHeaderPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
 import com.actiontech.dble.server.ServerConnection;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.singleton.ProxyMeta;
 import com.actiontech.dble.util.StringUtil;
 
@@ -41,7 +42,7 @@ public final class ShowTableStatus {
     private ShowTableStatus() {
     }
 
-    public static void response(ServerConnection c, String stmt) {
+    public static void response(MySQLShardingService shardingService, String stmt) {
 
         Matcher ma = PATTERN.matcher(stmt);
         ma.matches(); //always RETURN TRUE
@@ -50,42 +51,42 @@ public final class ShowTableStatus {
         if (schema != null && DbleServer.getInstance().getSystemVariables().isLowerCaseTableNames()) {
             schema = schema.toLowerCase();
         }
-        String cSchema = schema == null ? c.getSchema() : schema;
+        String cSchema = schema == null ? shardingService.getSchema() : schema;
         String likeCondition = ma.group(13);
-        responseDirect(c, cSchema, likeCondition);
+        responseDirect(shardingService, cSchema, likeCondition);
     }
 
 
-    private static void responseDirect(ServerConnection c, String cSchema, String likeCondition) {
+    private static void responseDirect(MySQLShardingService service, String cSchema, String likeCondition) {
         if (cSchema == null) {
-            c.writeErrMessage("3D000", "No database selected", ErrorCode.ER_NO_DB_ERROR);
+            service.writeErrMessage("3D000", "No database selected", ErrorCode.ER_NO_DB_ERROR);
             return;
         }
         SchemaMeta schemata = ProxyMeta.getInstance().getTmManager().getCatalogs().get(cSchema);
         if (schemata == null) {
-            c.writeErrMessage("42000", "Unknown database " + cSchema, ErrorCode.ER_BAD_DB_ERROR);
+            service.writeErrMessage("42000", "Unknown database " + cSchema, ErrorCode.ER_BAD_DB_ERROR);
             return;
         }
-        ByteBuffer buffer = c.allocate();
+        ByteBuffer buffer = service.allocate();
         Map<String, TableMeta> meta = schemata.getTableMetas();
         PackageBufINf bufInf;
 
-        bufInf = writeTablesHeaderAndRows(buffer, c, meta, likeCondition);
+        bufInf = writeTablesHeaderAndRows(buffer, service, meta, likeCondition);
 
-        writeRowEof(bufInf.getBuffer(), c, bufInf.getPacketId());
+        writeRowEof(bufInf.getBuffer(), service, bufInf.getPacketId());
     }
 
-    private static void writeRowEof(ByteBuffer buffer, ServerConnection c, byte packetId) {
+    private static void writeRowEof(ByteBuffer buffer, MySQLShardingService shardingService, byte packetId) {
         // write last eof
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
-        buffer = lastEof.write(buffer, c, true);
+        buffer = lastEof.write(buffer, shardingService, true);
 
         // post write
-        c.write(buffer);
+        shardingService.write(buffer);
     }
 
-    private static PackageBufINf writeTablesHeaderAndRows(ByteBuffer buffer, ServerConnection c, Map<String, TableMeta> tableMap, String likeCondition) {
+    private static PackageBufINf writeTablesHeaderAndRows(ByteBuffer buffer, MySQLShardingService service, Map<String, TableMeta> tableMap, String likeCondition) {
         int fieldCount = 18;
         ResultSetHeaderPacket header = PacketUtil.getHeader(fieldCount);
         FieldPacket[] fields = new FieldPacket[fieldCount];
@@ -97,13 +98,13 @@ public final class ShowTableStatus {
         EOFPacket eof = new EOFPacket();
         eof.setPacketId(++packetId);
         // write header
-        buffer = header.write(buffer, c, true);
+        buffer = header.write(buffer, service, true);
         // write fields
         for (FieldPacket field : fields) {
-            buffer = field.write(buffer, c, true);
+            buffer = field.write(buffer, service, true);
         }
         // write eof
-        eof.write(buffer, c, true);
+        eof.write(buffer, service, true);
 
         Pattern pattern = null;
         if (likeCondition != null && !"".equals(likeCondition)) {
@@ -122,26 +123,26 @@ public final class ShowTableStatus {
                 }
             }
 
-            row.add(StringUtil.encode(name, c.getCharset().getResults()));
-            row.add(StringUtil.encode("InnoDB", c.getCharset().getResults()));
-            row.add(StringUtil.encode("10", c.getCharset().getResults()));
-            row.add(StringUtil.encode("Compact", c.getCharset().getResults()));
-            row.add(StringUtil.encode("0", c.getCharset().getResults()));
-            row.add(StringUtil.encode("0", c.getCharset().getResults()));
-            row.add(StringUtil.encode("16384", c.getCharset().getResults()));
-            row.add(StringUtil.encode("0", c.getCharset().getResults()));
-            row.add(StringUtil.encode("0", c.getCharset().getResults()));
-            row.add(StringUtil.encode("0", c.getCharset().getResults()));
-            row.add(StringUtil.encode("", c.getCharset().getResults()));
-            row.add(StringUtil.encode("1970-01-01 00:00:00", c.getCharset().getResults()));
-            row.add(StringUtil.encode("1970-01-01 00:00:00", c.getCharset().getResults()));
-            row.add(StringUtil.encode("1970-01-01 00:00:00", c.getCharset().getResults()));
-            row.add(StringUtil.encode("utf8mb4_general_ci", c.getCharset().getResults()));
-            row.add(StringUtil.encode("", c.getCharset().getResults()));
-            row.add(StringUtil.encode("", c.getCharset().getResults()));
-            row.add(StringUtil.encode("", c.getCharset().getResults()));
+            row.add(StringUtil.encode(name, service.getCharset().getResults()));
+            row.add(StringUtil.encode("InnoDB", service.getCharset().getResults()));
+            row.add(StringUtil.encode("10", service.getCharset().getResults()));
+            row.add(StringUtil.encode("Compact", service.getCharset().getResults()));
+            row.add(StringUtil.encode("0", service.getCharset().getResults()));
+            row.add(StringUtil.encode("0", service.getCharset().getResults()));
+            row.add(StringUtil.encode("16384", service.getCharset().getResults()));
+            row.add(StringUtil.encode("0", service.getCharset().getResults()));
+            row.add(StringUtil.encode("0", service.getCharset().getResults()));
+            row.add(StringUtil.encode("0", service.getCharset().getResults()));
+            row.add(StringUtil.encode("", service.getCharset().getResults()));
+            row.add(StringUtil.encode("1970-01-01 00:00:00", service.getCharset().getResults()));
+            row.add(StringUtil.encode("1970-01-01 00:00:00", service.getCharset().getResults()));
+            row.add(StringUtil.encode("1970-01-01 00:00:00", service.getCharset().getResults()));
+            row.add(StringUtil.encode("utf8mb4_general_ci", service.getCharset().getResults()));
+            row.add(StringUtil.encode("", service.getCharset().getResults()));
+            row.add(StringUtil.encode("", service.getCharset().getResults()));
+            row.add(StringUtil.encode("", service.getCharset().getResults()));
             row.setPacketId(++packetId);
-            buffer = row.write(buffer, c, true);
+            buffer = row.write(buffer, service, true);
         }
         PackageBufINf packBuffInfo = new PackageBufINf();
         packBuffInfo.setBuffer(buffer);
