@@ -296,9 +296,9 @@ public class ServerConnection extends FrontendConnection {
             }
         }
 
-        if (autoCommitTask != null) {
+        /*if (autoCommitTask != null) {
             return SetInnerHandler.execSetAutoCommit(executeSql, this, Boolean.valueOf(autoCommitTask.getValue().getKey()));
-        }
+        }*/
         return false;
     }
 

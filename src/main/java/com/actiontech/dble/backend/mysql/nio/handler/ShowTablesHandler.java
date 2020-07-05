@@ -11,6 +11,7 @@ import com.actiontech.dble.backend.mysql.nio.handler.query.DMLResponseHandler;
 import com.actiontech.dble.backend.mysql.nio.handler.util.HandlerTool;
 import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
+import com.actiontech.dble.net.service.AbstractService;
 import com.actiontech.dble.plan.common.field.Field;
 import com.actiontech.dble.plan.common.item.Item;
 import com.actiontech.dble.plan.visitor.MySQLItemVisitor;
@@ -53,7 +54,7 @@ public class ShowTablesHandler extends SingleNodeHandler {
 
     @Override
     public void fieldEofResponse(byte[] header, List<byte[]> fields, List<FieldPacket> fieldPacketsNull, byte[] eof,
-                                 boolean isLeft, BackendConnection conn) {
+                                 boolean isLeft, AbstractService service) {
         MySQLShardingService shardingService = session.getShardingService();
         PackageBufINf bufInf;
         lock.lock();

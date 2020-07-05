@@ -7,14 +7,15 @@ package com.actiontech.dble.server.handler;
 
 import com.actiontech.dble.log.transaction.TxnLogHelper;
 import com.actiontech.dble.server.ServerConnection;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 
 public final class RollBackHandler {
     private RollBackHandler() {
     }
 
-    public static void handle(String stmt, ServerConnection c) {
-        TxnLogHelper.putTxnLog(c, stmt);
-        c.getSession2().transactionsCount();
-        c.rollback();
+    public static void handle(String stmt, MySQLShardingService service) {
+        TxnLogHelper.putTxnLog(service, stmt);
+        service.getSession2().transactionsCount();
+        service.rollback();
     }
 }

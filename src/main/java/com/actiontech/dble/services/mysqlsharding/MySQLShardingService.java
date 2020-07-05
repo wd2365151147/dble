@@ -2,6 +2,7 @@ package com.actiontech.dble.services.mysqlsharding;
 
 import com.actiontech.dble.DbleServer;
 import com.actiontech.dble.backend.mysql.CharsetUtil;
+import com.actiontech.dble.backend.mysql.nio.handler.transaction.savepoint.SavePointHandler;
 import com.actiontech.dble.backend.mysql.proto.handler.Impl.MySQLProtoHandlerImpl;
 import com.actiontech.dble.config.Capabilities;
 import com.actiontech.dble.config.ErrorCode;
@@ -9,6 +10,7 @@ import com.actiontech.dble.config.model.SystemConfig;
 import com.actiontech.dble.config.model.sharding.SchemaConfig;
 import com.actiontech.dble.config.model.user.ShardingUserConfig;
 import com.actiontech.dble.config.model.user.UserName;
+import com.actiontech.dble.log.transaction.TxnLogHelper;
 import com.actiontech.dble.net.connection.AbstractConnection;
 import com.actiontech.dble.net.connection.BackendConnection;
 import com.actiontech.dble.net.handler.FrontendPrepareHandler;
@@ -16,9 +18,11 @@ import com.actiontech.dble.net.mysql.AuthPacket;
 import com.actiontech.dble.net.mysql.ErrorPacket;
 import com.actiontech.dble.net.mysql.MySQLPacket;
 import com.actiontech.dble.net.service.AuthResultInfo;
+import com.actiontech.dble.route.RouteResultset;
 import com.actiontech.dble.route.parser.util.Pair;
 import com.actiontech.dble.server.NonBlockingSession;
 import com.actiontech.dble.server.ServerQueryHandler;
+import com.actiontech.dble.server.ServerSptPrepare;
 import com.actiontech.dble.server.handler.ServerLoadDataInfileHandler;
 import com.actiontech.dble.server.handler.ServerPrepareHandler;
 import com.actiontech.dble.server.handler.SetHandler;
@@ -27,12 +31,15 @@ import com.actiontech.dble.server.parser.ServerParse;
 import com.actiontech.dble.server.response.InformationSchemaProfiling;
 import com.actiontech.dble.server.util.SchemaUtil;
 import com.actiontech.dble.services.MySQLBasedService;
+import com.actiontech.dble.singleton.RouteService;
 import com.actiontech.dble.statistic.CommandCount;
+import com.actiontech.dble.util.SplitUtil;
 import com.actiontech.dble.util.StringUtil;
 import com.actiontech.dble.util.TimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
@@ -94,6 +101,8 @@ public class MySQLShardingService extends MySQLBasedService {
 
     private List<Pair<SetHandler.KeyType, Pair<String, String>>> contextTask = new ArrayList<>();
     private List<Pair<SetHandler.KeyType, Pair<String, String>>> innerSetTask = new ArrayList<>();
+
+    private ServerSptPrepare sptprepare;
 
     public MySQLShardingService(AbstractConnection connection) {
         super(connection);
@@ -398,6 +407,123 @@ public class MySQLShardingService extends MySQLBasedService {
         return false;
     }
 
+    public void beginInTx(String stmt) {
+        if (txInterrupted) {
+            writeErrMessage(ErrorCode.ER_YES, txInterruptMsg);
+        } else {
+            TxnLogHelper.putTxnLog(session.getShardingService(), "commit[because of " + stmt + "]");
+            this.txChainBegin = true;
+            session.commit();
+            TxnLogHelper.putTxnLog(session.getShardingService(), stmt);
+        }
+    }
+
+    // savepoint
+    public void performSavePoint(String spName, SavePointHandler.Type type) {
+        if (!autocommit || isTxStart()) {
+            if (type == SavePointHandler.Type.ROLLBACK && txInterrupted) {
+                txInterrupted = false;
+            }
+            session.performSavePoint(spName, type);
+        } else {
+            writeErrMessage(ErrorCode.ER_YES, "please use in transaction!");
+        }
+    }
+
+
+    public void commit(String logReason) {
+        if (txInterrupted) {
+            writeErrMessage(ErrorCode.ER_YES, txInterruptMsg);
+        } else {
+            TxnLogHelper.putTxnLog(session.getShardingService(), logReason);
+            session.commit();
+        }
+    }
+
+    public void rollback() {
+        if (txInterrupted) {
+            txInterrupted = false;
+        }
+
+        session.rollback();
+    }
+
+    public void lockTable(String sql) {
+        if ((!isAutocommit() || isTxStart())) {
+            session.implicitCommit(() -> doLockTable(sql));
+            return;
+        }
+        doLockTable(sql);
+    }
+
+    public void unLockTable(String sql) {
+        sql = sql.replaceAll("\n", " ").replaceAll("\t", " ");
+        String[] words = SplitUtil.split(sql, ' ', true);
+        if (words.length == 2 && ("table".equalsIgnoreCase(words[1]) || "tables".equalsIgnoreCase(words[1]))) {
+            isLocked = false;
+            session.unLockTable(sql);
+        } else {
+            writeErrMessage(ErrorCode.ER_UNKNOWN_COM_ERROR, "Unknown command");
+        }
+    }
+
+    public void loadDataInfileStart(String sql) {
+        if (loadDataInfileHandler != null) {
+            try {
+                loadDataInfileHandler.start(sql);
+            } catch (Exception e) {
+                LOGGER.info("load data error", e);
+                writeErrMessage(ErrorCode.ERR_HANDLE_DATA, e.getMessage());
+            }
+
+        } else {
+            writeErrMessage(ErrorCode.ER_UNKNOWN_COM_ERROR, "load data infile sql is not  unsupported!");
+        }
+    }
+
+    private void doLockTable(String sql) {
+        String db = this.schema;
+        SchemaConfig schemaConfig = null;
+        if (this.schema != null) {
+            schemaConfig = DbleServer.getInstance().getConfig().getSchemas().get(this.schema);
+            if (schemaConfig == null) {
+                writeErrMessage(ErrorCode.ERR_BAD_LOGICDB, "Unknown Database '" + db + "'");
+                return;
+            }
+        }
+
+        RouteResultset rrs;
+        try {
+            rrs = RouteService.getInstance().route(schemaConfig, ServerParse.LOCK, sql, this);
+        } catch (Exception e) {
+            executeException(e, sql);
+            return;
+        }
+
+        if (rrs != null) {
+            session.lockTable(rrs);
+        }
+    }
+
+    private void executeException(Exception e, String sql) {
+        if (e instanceof SQLException) {
+            SQLException sqlException = (SQLException) e;
+            String msg = sqlException.getMessage();
+            StringBuilder s = new StringBuilder();
+            if (LOGGER.isInfoEnabled()) {
+                LOGGER.info(s.append(this).append(sql).toString() + " err:" + msg);
+            }
+            int vendorCode = sqlException.getErrorCode() == 0 ? ErrorCode.ER_PARSE_ERROR : sqlException.getErrorCode();
+            String sqlState = StringUtil.isEmpty(sqlException.getSQLState()) ? "HY000" : sqlException.getSQLState();
+            String errorMsg = msg == null ? sqlException.getClass().getSimpleName() : msg;
+            writeErrMessage(sqlState, errorMsg, vendorCode);
+        } else {
+            StringBuilder s = new StringBuilder();
+            LOGGER.info(s.append(this).append(sql).toString() + " err:" + e.toString(), e);
+            String msg = e.getMessage();
+            writeErrMessage(ErrorCode.ER_PARSE_ERROR, msg == null ? e.getClass().getSimpleName() : msg);
+        }
+    }
 
     public void setCollationConnection(String collation) {
         connection.getCharsetName().setCollation(collation);
@@ -585,5 +711,13 @@ public class MySQLShardingService extends MySQLBasedService {
 
     public void setInnerSetTask(List<Pair<SetHandler.KeyType, Pair<String, String>>> innerSetTask) {
         this.innerSetTask = innerSetTask;
+    }
+
+    public ServerSptPrepare getSptPrepare() {
+        return sptprepare;
+    }
+
+    public void setSptPrepare(ServerSptPrepare sptprepare) {
+        this.sptprepare = sptprepare;
     }
 }

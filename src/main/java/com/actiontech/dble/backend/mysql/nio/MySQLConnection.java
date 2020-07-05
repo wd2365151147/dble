@@ -352,7 +352,7 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
     }
 
     private WriteToBackendTask sendQueryCmdTask(String query, CharsetNames clientCharset) {
-        CommandPacket packet = new CommandPacket();
+        /*CommandPacket packet = new CommandPacket();
         packet.setPacketId(0);
         packet.setCommand(MySQLPacket.COM_QUERY);
         try {
@@ -362,7 +362,8 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
         }
         isExecuting = true;
         lastTime = TimeUtil.currentTimeMillis();
-        return new WriteToBackendTask(this, packet);
+        return new WriteToBackendTask(this, packet);*/
+        return null;
     }
 
     private static void getCharsetCommand(StringBuilder sb, CharsetNames clientCharset) {

@@ -254,8 +254,9 @@ public final class ShowHandler {
                     if (iterator.hasNext()) {
                         PhysicalDbGroup pool = iterator.next();
                         final PhysicalDbInstance source = pool.getWriteDbInstance();
-                        TransformSQLJob sqlJob = new TransformSQLJob(stmt, null, source, c);
-                        sqlJob.run();
+                        //todo manager
+                        /*TransformSQLJob sqlJob = new TransformSQLJob(stmt, null, source, c);
+                        sqlJob.run();*/
                     } else {
                         c.writeErrMessage(ErrorCode.ER_YES, "no valid dbGroup");
                     }

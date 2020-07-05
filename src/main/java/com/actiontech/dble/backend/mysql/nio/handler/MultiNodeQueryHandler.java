@@ -445,13 +445,14 @@ public class MultiNodeQueryHandler extends MultiNodeHandler implements LoadDataR
                     byteBuffer = binRowDataPk.write(byteBuffer, session.getShardingService(), true);
                     this.packetId = (byte) session.getPacketId().get();
                 } else {
-                    if (row.length >= MySQLPacket.MAX_PACKET_SIZE + MySQLPacket.PACKET_HEADER_SIZE) {
+                    //todo big packet should be impl
+                   /* if (row.length >= MySQLPacket.MAX_PACKET_SIZE + MySQLPacket.PACKET_HEADER_SIZE) {
                         byteBuffer = session.getShardingService().writeBigPackageToBuffer(row, byteBuffer, packetId);
                         this.packetId = (byte) session.getPacketId().get();
                     } else {
                         row[3] = ++packetId;
                         byteBuffer = session.getFrontConnection().writeToBuffer(row, byteBuffer);
-                    }
+                    }*/
                 }
             }
         } catch (Exception e) {

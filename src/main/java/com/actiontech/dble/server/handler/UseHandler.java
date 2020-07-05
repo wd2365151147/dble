@@ -9,6 +9,7 @@ import com.actiontech.dble.DbleServer;
 import com.actiontech.dble.config.ErrorCode;
 import com.actiontech.dble.config.model.user.ShardingUserConfig;
 import com.actiontech.dble.server.ServerConnection;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.StringUtil;
 
 import java.nio.ByteBuffer;
@@ -20,7 +21,7 @@ public final class UseHandler {
     private UseHandler() {
     }
 
-    public static void handle(String sql, ServerConnection c, int offset) {
+    public static void handle(String sql, MySQLShardingService service, int offset) {
         String schema = sql.substring(offset).trim();
         int length = schema.length();
         if (length > 0) {
@@ -37,23 +38,23 @@ public final class UseHandler {
             }
         }
         if (!DbleServer.getInstance().getConfig().getSchemas().containsKey(schema)) {
-            c.writeErrMessage(ErrorCode.ER_BAD_DB_ERROR, "Unknown database '" + schema + "'");
+            service.writeErrMessage(ErrorCode.ER_BAD_DB_ERROR, "Unknown database '" + schema + "'");
             return;
         }
-        if (c.getUserConfig() instanceof ShardingUserConfig) {
-            ShardingUserConfig userConfig = (ShardingUserConfig) (c.getUserConfig());
+        if (service.getUserConfig() instanceof ShardingUserConfig) {
+            ShardingUserConfig userConfig = (ShardingUserConfig) (service.getUserConfig());
             if (!userConfig.getSchemas().contains(schema)) {
-                String msg = "Access denied for user '" + c.getUser() + "' to database '" + schema + "'";
-                c.writeErrMessage(ErrorCode.ER_DBACCESS_DENIED_ERROR, msg);
+                String msg = "Access denied for user '" + service.getUser() + "' to database '" + schema + "'";
+                service.writeErrMessage(ErrorCode.ER_DBACCESS_DENIED_ERROR, msg);
                 return;
             }
         }
-        c.setSchema(schema);
-        ByteBuffer buffer = c.allocate();
-        boolean multiStatementFlag = c.getSession2().getIsMultiStatement().get();
-        c.getSession2().setRowCount(0);
-        c.write(c.writeToBuffer(c.getSession2().getOkByteArray(), buffer));
-        c.getSession2().multiStatementNextSql(multiStatementFlag);
+        service.setSchema(schema);
+        ByteBuffer buffer = service.allocate();
+        boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
+        service.getSession2().setRowCount(0);
+        service.write(service.writeToBuffer(service.getSession2().getOkByteArray(), buffer));
+        service.getSession2().multiStatementNextSql(multiStatementFlag);
     }
 
 }

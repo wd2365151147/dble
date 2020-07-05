@@ -7,20 +7,21 @@ package com.actiontech.dble.server.handler;
 
 import com.actiontech.dble.log.transaction.TxnLogHelper;
 import com.actiontech.dble.server.ServerConnection;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 
 public final class BeginHandler {
     private BeginHandler() {
     }
 
-    public static void handle(String stmt, ServerConnection c) {
-        if (c.isTxStart() || !c.isAutocommit()) {
-            c.beginInTx(stmt);
+    public static void handle(String stmt, MySQLShardingService service) {
+        if (service.isTxStart() || !service.isAutocommit()) {
+            service.beginInTx(stmt);
         } else {
-            c.setTxStart(true);
-            TxnLogHelper.putTxnLog(c, stmt);
-            boolean multiStatementFlag = c.getSession2().getIsMultiStatement().get();
-            c.write(c.writeToBuffer(c.getSession2().getOkByteArray(), c.allocate()));
-            c.getSession2().multiStatementNextSql(multiStatementFlag);
+            service.setTxStarted(true);
+            TxnLogHelper.putTxnLog(service, stmt);
+            boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
+            service.write(service.writeToBuffer(service.getSession2().getOkByteArray(), service.allocate()));
+            service.getSession2().multiStatementNextSql(multiStatementFlag);
         }
     }
 }
