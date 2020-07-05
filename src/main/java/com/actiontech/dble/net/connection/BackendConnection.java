@@ -29,10 +29,6 @@ public class BackendConnection extends PooledConnection {
 
     }
 
-    @Override
-    public void startFlowControl(com.actiontech.dble.backend.BackendConnection bcon) {
-
-    }
 
     @Override
     public void stopFlowControl() {
@@ -40,6 +36,11 @@ public class BackendConnection extends PooledConnection {
     }
 
     public void onConnectFailed(Throwable e) {
+
+    }
+
+    @Override
+    public void startFlowControl(BackendConnection bcon) {
 
     }
 

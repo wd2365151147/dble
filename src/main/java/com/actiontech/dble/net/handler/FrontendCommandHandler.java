@@ -32,7 +32,7 @@ public abstract class FrontendCommandHandler implements NIOHandler {
 
     @Override
     public void handle(byte[] data) {
-        if (data.length - MySQLPacket.PACKET_HEADER_SIZE >= SystemConfig.getInstance().getMaxPacketSize()) {
+        /*if (data.length - MySQLPacket.PACKET_HEADER_SIZE >= SystemConfig.getInstance().getMaxPacketSize()) {
             MySQLMessage mm = new MySQLMessage(data);
             mm.readUB3();
             byte packetId = 0;
@@ -51,7 +51,7 @@ public abstract class FrontendCommandHandler implements NIOHandler {
             errPacket.setPacketId(++packetId);
             errPacket.write(source);
             return;
-        }
+        }*/
         handleDataByPacket(data);
     }
 

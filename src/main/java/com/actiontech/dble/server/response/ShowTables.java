@@ -18,7 +18,6 @@ import com.actiontech.dble.config.model.sharding.table.GlobalTableConfig;
 import com.actiontech.dble.config.model.sharding.table.ShardingTableConfig;
 import com.actiontech.dble.config.model.sharding.table.SingleTableConfig;
 import com.actiontech.dble.config.model.user.ShardingUserConfig;
-import com.actiontech.dble.manager.handler.PackageBufINf;
 import com.actiontech.dble.meta.SchemaMeta;
 import com.actiontech.dble.meta.ViewMeta;
 import com.actiontech.dble.net.mysql.EOFPacket;

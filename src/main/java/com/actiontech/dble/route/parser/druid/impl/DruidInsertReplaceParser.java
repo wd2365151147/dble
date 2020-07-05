@@ -17,7 +17,6 @@ import com.actiontech.dble.route.parser.druid.ServerSchemaStatVisitor;
 import com.actiontech.dble.route.parser.util.Pair;
 import com.actiontech.dble.route.util.ConditionUtil;
 import com.actiontech.dble.route.util.RouterUtil;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.handler.ExplainHandler;
 import com.actiontech.dble.server.util.SchemaUtil;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
@@ -49,14 +48,14 @@ abstract class DruidInsertReplaceParser extends DruidModifyParser {
      * + sharding table
      * + multi-node global table
      *
-     * @param sc
+     * @param service
      * @param rrs
      * @param stmt
      * @param visitor
      * @param schemaInfo
      * @throws SQLException
      */
-    protected void tryRouteInsertQuery(ServerConnection sc, RouteResultset rrs, SQLStatement stmt, ServerSchemaStatVisitor visitor, SchemaUtil.SchemaInfo schemaInfo) throws SQLException {
+    protected void tryRouteInsertQuery(MySQLShardingService service, RouteResultset rrs, SQLStatement stmt, ServerSchemaStatVisitor visitor, SchemaUtil.SchemaInfo schemaInfo) throws SQLException {
         // insert into .... select ....
         SQLSelect select = acceptVisitor(stmt, visitor);
         String tableName = schemaInfo.getTable();
@@ -74,7 +73,7 @@ abstract class DruidInsertReplaceParser extends DruidModifyParser {
         } else if (tc instanceof GlobalTableConfig) {
             routeShardingNodes = checkForMultiNodeGlobal(visitor, (GlobalTableConfig) tc, schema);
         } else if (tc instanceof ShardingTableConfig) {
-            routeShardingNodes = checkForShardingTable(visitor, select, sc, rrs, (ShardingTableConfig) tc, schemaInfo, stmt, schema);
+            routeShardingNodes = checkForShardingTable(visitor, select, service, rrs, (ShardingTableConfig) tc, schemaInfo, stmt, schema);
         } else {
             throw new SQLNonTransientException(MODIFY_SQL_NOT_SUPPORT_MESSAGE);
         }

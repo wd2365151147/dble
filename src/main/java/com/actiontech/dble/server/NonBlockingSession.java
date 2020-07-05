@@ -126,7 +126,7 @@ public class NonBlockingSession implements Session {
         this.otherBufferMC = new MemSizeController(1024L * 1024L * SystemConfig.getInstance().getOtherMemSize());
         this.transactionManager = new TransactionHandlerManager(this);
         if (SystemConfig.getInstance().getUseSerializableMode() == 1) {
-            transactionManager.setXaTxEnabled(true, service.getConnection());
+            transactionManager.setXaTxEnabled(true, service);
         }
     }
 
@@ -691,7 +691,7 @@ public class NonBlockingSession implements Session {
         }
         LockTablesHandler handler = new LockTablesHandler(this, rrs);
         service.setLocked(true);
-        transactionManager.setXaTxEnabled(false, service.getConnection());
+        transactionManager.setXaTxEnabled(false, service);
         try {
             handler.execute();
         } catch (Exception e) {

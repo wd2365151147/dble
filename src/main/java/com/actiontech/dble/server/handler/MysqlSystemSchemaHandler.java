@@ -10,6 +10,7 @@ import com.actiontech.dble.config.Fields;
 import com.actiontech.dble.net.mysql.*;
 import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.util.SchemaUtil;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.StringUtil;
 import com.alibaba.druid.sql.ast.statement.SQLSelectItem;
 import com.alibaba.druid.sql.ast.statement.SQLSelectQuery;
@@ -26,7 +27,7 @@ public final class MysqlSystemSchemaHandler {
     public static final String SCHEMATA_TABLE = "SCHEMATA";
     public static final String INFORMATION_SCHEMA = "INFORMATION_SCHEMA";
 
-    public static void handle(ServerConnection sc, SchemaUtil.SchemaInfo schemaInfo, SQLSelectQuery sqlSelectQuery) {
+    public static void handle(MySQLShardingService service, SchemaUtil.SchemaInfo schemaInfo, SQLSelectQuery sqlSelectQuery) {
         MySqlSelectQueryBlock mySqlSelectQueryBlock = null;
         if (sqlSelectQuery instanceof MySqlSelectQueryBlock) {
             mySqlSelectQueryBlock = (MySqlSelectQueryBlock) sqlSelectQuery;
@@ -36,17 +37,17 @@ public final class MysqlSystemSchemaHandler {
         }
 
         if (mySqlSelectQueryBlock == null) {
-            sc.write(sc.writeToBuffer(OkPacket.OK, sc.allocate()));
+            service.write(service.writeToBuffer(OkPacket.OK, service.allocate()));
             return;
         }
         FieldPacket[] fields = generateFieldPacket(mySqlSelectQueryBlock.getSelectList());
         if (schemaInfo != null && INFORMATION_SCHEMA.equals(schemaInfo.getSchema().toUpperCase()) &&
                 SCHEMATA_TABLE.equals(schemaInfo.getTable().toUpperCase())) {
-            MysqlInformationSchemaHandler.handle(sc, fields);
+            MysqlInformationSchemaHandler.handle(service, fields);
             return;
         }
 
-        doWrite(fields.length, fields, null, sc);
+        doWrite(fields.length, fields, null, service);
     }
 
     private static FieldPacket[] generateFieldPacket(List<SQLSelectItem> selectList) {
@@ -67,43 +68,43 @@ public final class MysqlSystemSchemaHandler {
     /**
      * @param fieldCount
      * @param fields
-     * @param c
+     * @param service
      */
-    public static void doWrite(int fieldCount, FieldPacket[] fields, RowDataPacket[] rows, ServerConnection c) {
+    public static void doWrite(int fieldCount, FieldPacket[] fields, RowDataPacket[] rows, MySQLShardingService service) {
 
-        ByteBuffer buffer = c.allocate();
+        ByteBuffer buffer = service.allocate();
 
         // write header
         ResultSetHeaderPacket header = PacketUtil.getHeader(fieldCount);
         byte packetId = header.getPacketId();
-        buffer = header.write(buffer, c, true);
+        buffer = header.write(buffer, service, true);
 
         // write fields
         for (FieldPacket field : fields) {
             field.setPacketId(++packetId);
-            buffer = field.write(buffer, c, true);
+            buffer = field.write(buffer, service, true);
         }
 
         // write eof
         EOFPacket eof = new EOFPacket();
         eof.setPacketId(++packetId);
-        buffer = eof.write(buffer, c, true);
+        buffer = eof.write(buffer, service, true);
 
         // write rows
         if (rows != null) {
             for (RowDataPacket row : rows) {
                 row.setPacketId(++packetId);
-                buffer = row.write(buffer, c, true);
+                buffer = row.write(buffer, service, true);
             }
         }
 
         // write last eof
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
-        buffer = lastEof.write(buffer, c, true);
+        buffer = lastEof.write(buffer, service, true);
 
         // post write
-        c.write(buffer);
+        service.write(buffer);
     }
 }
 

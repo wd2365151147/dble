@@ -72,7 +72,7 @@ public class ShowTablesHandler extends SingleNodeHandler {
                 packetId = bufInf.getPacketId();
                 buffer = bufInf.getBuffer();
                 if (info.getWhere() != null) {
-                    MySQLItemVisitor mev = new MySQLItemVisitor(shardingService.getSchema(), shardingService.getCharset().getResultsIndex(), ProxyMeta.getInstance().getTmManager(), source.getUsrVariables());
+                    MySQLItemVisitor mev = new MySQLItemVisitor(shardingService.getSchema(), shardingService.getCharset().getResultsIndex(), ProxyMeta.getInstance().getTmManager(), shardingService.getUsrVariables());
                     info.getWhereExpr().accept(mev);
                     sourceFields = HandlerTool.createFields(fieldPackets);
                     whereItem = HandlerTool.createItem(mev.getItem(), sourceFields, 0, false, DMLResponseHandler.HandlerType.WHERE);
@@ -95,10 +95,10 @@ public class ShowTablesHandler extends SingleNodeHandler {
     }
 
     @Override
-    public boolean rowResponse(byte[] row, RowDataPacket rowPacket, boolean isLeft, BackendConnection conn) {
+    public boolean rowResponse(byte[] row, RowDataPacket rowPacket, boolean isLeft, AbstractService service) {
         RowDataPacket rowDataPacket = new RowDataPacket(1);
         rowDataPacket.read(row);
-        String table = StringUtil.decode(rowDataPacket.fieldValues.get(0), session.getFrontConnection().getCharset().getResults());
+        String table = StringUtil.decode(rowDataPacket.fieldValues.get(0), session.getShardingService().getCharset().getResults());
         if (shardingTablesMap.containsKey(table)) {
             this.netOutBytes += row.length;
             this.selectRows++;
@@ -109,10 +109,10 @@ public class ShowTablesHandler extends SingleNodeHandler {
                 HandlerTool.initFields(sourceFields, rowDataPk.fieldValues);
                 /* filter the where condition */
                 if (whereItem.valBool()) {
-                    super.rowResponse(row, rowPacket, isLeft, conn);
+                    super.rowResponse(row, rowPacket, isLeft, service);
                 }
             } else {
-                super.rowResponse(row, rowPacket, isLeft, conn);
+                super.rowResponse(row, rowPacket, isLeft, service);
             }
         }
         return false;

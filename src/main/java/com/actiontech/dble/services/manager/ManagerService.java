@@ -56,6 +56,11 @@ public class ManagerService extends MySQLBasedService {
         }
     }
 
+    @Override
+    public void markFinished() {
+
+    }
+
     public ManagerUserConfig getUserConfig() {
         return (ManagerUserConfig) userConfig;
     }
