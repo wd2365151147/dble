@@ -2,6 +2,7 @@ package com.actiontech.dble.singleton;
 
 import com.actiontech.dble.DbleServer;
 import com.actiontech.dble.net.FrontendConnection;
+import com.actiontech.dble.net.IOProcessor;
 import com.actiontech.dble.net.NIOProcessor;
 import com.actiontech.dble.server.NonBlockingSession;
 import com.actiontech.dble.server.ServerConnection;
@@ -26,7 +27,7 @@ public final class TsQueriesCounter {
         long transactions = 0;
         lock.readLock().lock();
         try {
-            for (NIOProcessor processor : DbleServer.getInstance().getFrontProcessors()) {
+            for (IOProcessor processor : DbleServer.getInstance().getFrontProcessors()) {
                 for (FrontendConnection fc : processor.getFrontends().values()) {
                     if (fc instanceof ServerConnection) {
                         long query = ((ServerConnection) fc).getSession2().getQueriesCounter();

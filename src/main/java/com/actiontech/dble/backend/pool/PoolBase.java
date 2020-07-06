@@ -22,6 +22,7 @@ public class PoolBase {
 
     /**
      * only for heartbeat
+     *
      * @return
      */
     public void newConnection(String schema, ResponseHandler handler) {
@@ -36,7 +37,7 @@ public class PoolBase {
     PooledConnection newConnection(String schema, PooledConnectionListener listener) {
         PooledConnection conn = null;
         try {
-            return  factory.make(instance, listener, schema);
+            return factory.make(instance, listener, schema);
         } catch (IOException ioe) {
             listener.onCreateFail(conn, ioe);
             return null;

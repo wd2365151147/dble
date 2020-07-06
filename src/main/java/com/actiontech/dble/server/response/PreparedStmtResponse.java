@@ -10,6 +10,7 @@ import com.actiontech.dble.net.connection.AbstractConnection;
 import com.actiontech.dble.net.mysql.EOFPacket;
 import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.PreparedOkPacket;
+import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 
 import java.nio.ByteBuffer;
 
@@ -20,7 +21,7 @@ public final class PreparedStmtResponse {
     private PreparedStmtResponse() {
     }
 
-    public static void response(PreparedStatement pStmt, AbstractConnection c) {
+    public static void response(PreparedStatement pStmt, MySQLShardingService service) {
         byte packetId = 0;
 
         // write preparedOk packet
@@ -29,7 +30,7 @@ public final class PreparedStmtResponse {
         preparedOk.setStatementId(pStmt.getId());
         preparedOk.setColumnsNumber(pStmt.getColumnsNumber());
         preparedOk.setParametersNumber(pStmt.getParametersNumber());
-        ByteBuffer buffer = preparedOk.write(c.allocate(), c, true);
+        ByteBuffer buffer = preparedOk.write(service.allocate(), service, true);
 
         // write parameter field packet
         int parametersNumber = preparedOk.getParametersNumber();
@@ -37,11 +38,11 @@ public final class PreparedStmtResponse {
             for (int i = 0; i < parametersNumber; i++) {
                 FieldPacket field = new FieldPacket();
                 field.setPacketId(++packetId);
-                buffer = field.write(buffer, c, true);
+                buffer = field.write(buffer, service, true);
             }
             EOFPacket eof = new EOFPacket();
             eof.setPacketId(++packetId);
-            buffer = eof.write(buffer, c, true);
+            buffer = eof.write(buffer, service, true);
         }
 
         // write column field packet
@@ -50,15 +51,15 @@ public final class PreparedStmtResponse {
             for (int i = 0; i < columnsNumber; i++) {
                 FieldPacket field = new FieldPacket();
                 field.setPacketId(++packetId);
-                buffer = field.write(buffer, c, true);
+                buffer = field.write(buffer, service, true);
             }
             EOFPacket eof = new EOFPacket();
             eof.setPacketId(++packetId);
-            buffer = eof.write(buffer, c, true);
+            buffer = eof.write(buffer, service, true);
         }
 
         // send buffer
-        c.write(buffer);
+        service.write(buffer);
     }
 
 }

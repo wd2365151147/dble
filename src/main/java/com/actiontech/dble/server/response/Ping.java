@@ -24,11 +24,11 @@ public final class Ping {
     private static final ErrorPacket ERROR = PacketUtil.getShutdown();
 
     public static void response(FrontendConnection c) {
-        if (DbleServer.getInstance().isOnline()) {
+      /*  if (DbleServer.getInstance().isOnline()) {
             c.write(c.writeToBuffer(OkPacket.OK, c.allocate()));
         } else {
             ERROR.write(c);
-        }
+        }*/
     }
 
     public static void response(AbstractConnection c) {

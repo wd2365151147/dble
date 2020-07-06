@@ -3,8 +3,12 @@ package com.actiontech.dble.net.executor;
 
 import com.actiontech.dble.DbleServer;
 import com.actiontech.dble.config.model.SystemConfig;
+import com.actiontech.dble.net.service.AbstractService;
 import com.actiontech.dble.net.service.ServiceTask;
 import com.actiontech.dble.statistic.stat.ThreadWorkUsage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 
@@ -13,6 +17,7 @@ import java.util.concurrent.BlockingQueue;
  */
 public class FrontEndHandlerRunnable implements Runnable {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(FrontEndHandlerRunnable.class);
     private final BlockingQueue<ServiceTask> frontNormalTasks;
     private final Queue<ServiceTask> frontPriorityTasks;
 

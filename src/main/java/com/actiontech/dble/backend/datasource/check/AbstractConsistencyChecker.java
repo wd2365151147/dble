@@ -1,7 +1,6 @@
 package com.actiontech.dble.backend.datasource.check;
 
 import com.actiontech.dble.backend.datasource.ShardingNode;
-import com.actiontech.dble.manager.response.CheckGlobalConsistency;
 import com.actiontech.dble.sqlengine.MultiRowSQLQueryResultHandler;
 import com.actiontech.dble.sqlengine.SQLJob;
 import com.actiontech.dble.sqlengine.SQLQueryResult;
@@ -22,7 +21,7 @@ public abstract class AbstractConsistencyChecker implements SQLQueryResultListen
     private final AtomicInteger count = new AtomicInteger();
     protected volatile String tableName;
     protected volatile String schema;
-    protected volatile CheckGlobalConsistency handler = null;
+    //protected volatile CheckGlobalConsistency handler = null;
     private List<SQLQueryResult<List<Map<String, String>>>> results = Collections.synchronizedList(new ArrayList<>());
     private List<SQLQueryResult<List<Map<String, String>>>> errorList = Collections.synchronizedList(new ArrayList<>());
 
@@ -76,9 +75,9 @@ public abstract class AbstractConsistencyChecker implements SQLQueryResultListen
             resultResponse(errorList);
         }
 
-        if (handler != null) {
+        /*if (handler != null) {
             handler.collectResult(schema, tableName, distinctList.size(), errorList.size());
-        }
+        }*/
     }
 
     public String getTableName() {
@@ -97,9 +96,9 @@ public abstract class AbstractConsistencyChecker implements SQLQueryResultListen
         this.schema = schema;
     }
 
-    public void setHandler(CheckGlobalConsistency handler) {
+ /*   public void setHandler(CheckGlobalConsistency handler) {
         this.handler = handler;
-    }
+    }*/
 
     public abstract String[] getFetchCols();
 

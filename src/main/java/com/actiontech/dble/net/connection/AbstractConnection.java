@@ -95,7 +95,10 @@ public abstract class AbstractConnection implements Connection {
             return;
         }
         netInBytes += got;
-
+        LOGGER.debug("-------------------------------------------NET IN BYTES ======== " + netInBytes);
+        if(netInBytes > 15000){
+            LOGGER.debug("----");
+        }
         service.handle(readBuffer);
     }
 

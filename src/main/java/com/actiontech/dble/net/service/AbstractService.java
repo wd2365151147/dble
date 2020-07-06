@@ -4,6 +4,8 @@ package com.actiontech.dble.net.service;
 import com.actiontech.dble.backend.mysql.proto.handler.ProtoHandler;
 import com.actiontech.dble.backend.mysql.proto.handler.ProtoHandlerResult;
 import com.actiontech.dble.net.connection.AbstractConnection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -14,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Created by szf on 2020/6/16.
  */
 public abstract class AbstractService implements Service {
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractService.class);
     protected final ConcurrentLinkedQueue<ServiceTask> taskQueue = new ConcurrentLinkedQueue<>();
     protected ServiceTask currentTask = null;
     protected volatile ProtoHandler proto;
@@ -35,6 +37,7 @@ public abstract class AbstractService implements Service {
 
         boolean hasReming = true;
         int offset = 0;
+        int totalsize = 0;
         while (hasReming) {
             ProtoHandlerResult result = proto.handle(dataBuffer, offset);
             switch (result.getCode()) {
@@ -42,21 +45,30 @@ public abstract class AbstractService implements Service {
                     connection.readReachEnd();
                     byte[] packetData = result.getPacketData();
                     if (packetData != null) {
+                        LOGGER.debug(" get the packet of length " + packetData.length + " of connection " + connection.toString());
+                        totalsize += packetData.length;
                         TaskCreate(packetData);
                     }
+                    LOGGER.debug("get OUT OF THE READ BECAUSE OF THE REACH_END_BUFFER");
+                    hasReming = false;
                     break;
                 case BUFFER_PACKET_UNCOMPLETE:
                     connection.compactReadBuffer(dataBuffer, result.getOffset());
+                    LOGGER.debug("get OUT OF THE READ BECAUSE OF THE BUFFER_PACKET_UNCOMPLETE");
                     hasReming = false;
                     break;
                 case BUFFER_NOT_BIG_ENOUGH:
                     connection.ensureFreeSpaceOfReadBuffer(dataBuffer, result.getOffset(), result.getPacketLength());
+                    LOGGER.debug("get OUT OF THE READ BECAUSE OF THE BUFFER_NOT_BIG_ENOUGH");
                     hasReming = false;
                     break;
                 case STLL_DATA_REMING:
+                    totalsize += result.getPacketData().length;
                     TaskCreate(result.getPacketData());
+                    offset = result.getOffset();
                     continue;
             }
+            LOGGER.info("the read end of the result is +++++++++++++++++++++ " + totalsize);
         }
     }
 

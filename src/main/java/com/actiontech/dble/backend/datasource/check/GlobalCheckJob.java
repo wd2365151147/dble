@@ -4,7 +4,6 @@ import com.actiontech.dble.DbleServer;
 import com.actiontech.dble.backend.datasource.ShardingNode;
 import com.actiontech.dble.config.ServerConfig;
 import com.actiontech.dble.config.model.sharding.table.GlobalTableConfig;
-import com.actiontech.dble.manager.response.CheckGlobalConsistency;
 import com.actiontech.dble.singleton.ProxyMeta;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -27,16 +26,16 @@ public class GlobalCheckJob implements Job {
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobalCheckJob.class);
     private volatile GlobalTableConfig tc;
     private volatile String schema;
-    private volatile CheckGlobalConsistency handler;
+    //private volatile CheckGlobalConsistency handler;
 
     public GlobalCheckJob() {
     }
 
-    public GlobalCheckJob(GlobalTableConfig tc, String schema, CheckGlobalConsistency handler) {
+    /*public GlobalCheckJob(GlobalTableConfig tc, String schema, CheckGlobalConsistency handler) {
         this.tc = tc;
         this.schema = schema;
         this.handler = handler;
-    }
+    }*/
 
 
     public void checkGlobalTable() {
@@ -45,9 +44,9 @@ public class GlobalCheckJob implements Job {
             ServerConfig config = DbleServer.getInstance().getConfig();
             if (null == ProxyMeta.getInstance().getTmManager().getSyncTableMeta(schema, tc.getName())) {
                 LOGGER.info("Global check skip because of Meta don't exist:" + tc.getName());
-                if (handler != null) {
+                /*if (handler != null) {
                     handler.collectResult(schema, tc.getName(), 0, 0);
-                }
+                }*/
                 return;
             }
             AbstractConsistencyChecker checker;
@@ -64,7 +63,7 @@ public class GlobalCheckJob implements Job {
             }
             checker.setSchema(schema);
             checker.setTableName(tc.getName());
-            checker.setHandler(handler);
+            //checker.setHandler(handler);
             for (String nodeName : tc.getShardingNodes()) {
                 Map<String, ShardingNode> map = config.getShardingNodes();
                 for (ShardingNode dbNode : map.values()) {
@@ -85,7 +84,7 @@ public class GlobalCheckJob implements Job {
     public void execute(JobExecutionContext context) throws JobExecutionException {
         tc = (GlobalTableConfig) context.getJobDetail().getJobDataMap().get("TableConfig");
         schema = (String) context.getJobDetail().getJobDataMap().get("schema");
-        handler = null;
+        //handler = null;
         this.checkGlobalTable();
     }
 }

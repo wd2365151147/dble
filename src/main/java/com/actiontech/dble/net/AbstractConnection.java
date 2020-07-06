@@ -77,11 +77,8 @@ public abstract class AbstractConnection implements NIOConnection {
     public AbstractConnection(NetworkChannel channel) {
         this.channel = channel;
         boolean isAIO = (channel instanceof AsynchronousChannel);
-        if (isAIO) {
-            socketWR = new AIOSocketWR(this);
-        } else {
+
             socketWR = new NIOSocketWR(this);
-        }
         this.startupTime = TimeUtil.currentTimeMillis();
         this.lastReadTime = startupTime;
         this.lastWriteTime = startupTime;

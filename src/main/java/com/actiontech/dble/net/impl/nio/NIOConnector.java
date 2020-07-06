@@ -90,7 +90,6 @@ public final class NIOConnector extends Thread implements SocketConnector {
                 SocketChannel channel = (SocketChannel) c.getChannel();
                 channel.register(finalSelector, SelectionKey.OP_CONNECT, c);
                 channel.connect(new InetSocketAddress(c.getHost(), c.getPort()));
-
             } catch (Exception e) {
                 LOGGER.warn("error:", e);
                 c.onConnectFailed(e);

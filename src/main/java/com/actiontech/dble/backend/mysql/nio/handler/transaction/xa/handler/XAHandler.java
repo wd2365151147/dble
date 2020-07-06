@@ -5,8 +5,6 @@
 
 package com.actiontech.dble.backend.mysql.nio.handler.transaction.xa.handler;
 
-import com.actiontech.dble.backend.BackendConnection;
-import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
 import com.actiontech.dble.backend.mysql.nio.handler.transaction.ImplicitCommitHandler;
 import com.actiontech.dble.backend.mysql.nio.handler.transaction.TransactionHandler;
 import com.actiontech.dble.backend.mysql.nio.handler.transaction.xa.stage.XAEndStage;
@@ -16,6 +14,7 @@ import com.actiontech.dble.backend.mysql.xa.CoordinatorLogEntry;
 import com.actiontech.dble.backend.mysql.xa.ParticipantLogEntry;
 import com.actiontech.dble.backend.mysql.xa.TxState;
 import com.actiontech.dble.backend.mysql.xa.XAStateLog;
+import com.actiontech.dble.net.connection.BackendConnection;
 import com.actiontech.dble.route.RouteResultsetNode;
 import com.actiontech.dble.server.NonBlockingSession;
 
@@ -99,9 +98,9 @@ public class XAHandler extends AbstractXAHandler implements TransactionHandler {
         int position = 0;
         for (RouteResultsetNode rrn : session.getTargetKeys()) {
             final BackendConnection conn = session.getTarget(rrn);
-            conn.setResponseHandler(this);
+            conn.getBackendService().setResponseHandler(this);
 
-            XAStateLog.initRecoveryLog(session.getSessionXaID(), position, (MySQLConnection) conn);
+            XAStateLog.initRecoveryLog(session.getSessionXaID(), position,conn.getBackendService());
             position++;
         }
     }

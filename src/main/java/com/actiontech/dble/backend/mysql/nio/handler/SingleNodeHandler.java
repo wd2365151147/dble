@@ -367,7 +367,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
                 FlowControllerConfig fconfig = WriteQueueFlowController.getFlowCotrollerConfig();
                 if (fconfig.isEnableFlowControl() &&
                         session.getFrontConnection().getWriteQueue().size() > fconfig.getStart()) {
-                    session.getFrontConnection().startFlowControl(service);
+                    session.getFrontConnection().startFlowControl(((MySQLResponseService)service).getConnection());
                 }
                 if (session.isPrepared()) {
                     RowDataPacket rowDataPk = new RowDataPacket(fieldCount);
@@ -379,13 +379,13 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
                     buffer = binRowDataPk.write(buffer, session.getShardingService(), true);
                     this.packetId = (byte) session.getPacketId().get();
                 } else {
-                    if (row.length >= MySQLPacket.MAX_PACKET_SIZE + MySQLPacket.PACKET_HEADER_SIZE) {
+                   /* if (row.length >= MySQLPacket.MAX_PACKET_SIZE + MySQLPacket.PACKET_HEADER_SIZE) {
                         buffer = session.getFrontConnection().writeBigPackageToBuffer(row, buffer, packetId);
                         this.packetId = (byte) session.getPacketId().get();
                     } else {
                         row[3] = ++packetId;
                         buffer = session.getFrontConnection().writeToBuffer(row, buffer);
-                    }
+                    }*/
                 }
             }
         } finally {

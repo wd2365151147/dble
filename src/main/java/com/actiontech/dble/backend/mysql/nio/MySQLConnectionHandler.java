@@ -176,7 +176,7 @@ public class MySQLConnectionHandler extends BackendAsyncHandler {
     private void handleRequestPacket(byte[] data) {
         ResponseHandler respHand = responseHandler;
         if (respHand != null && respHand instanceof LoadDataResponseHandler) {
-            ((LoadDataResponseHandler) respHand).requestDataResponse(data, source);
+           // ((LoadDataResponseHandler) respHand).requestDataResponse(data, source);
         } else {
             closeNoHandler();
         }

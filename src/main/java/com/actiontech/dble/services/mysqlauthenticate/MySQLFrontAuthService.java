@@ -85,6 +85,11 @@ public class MySQLFrontAuthService extends MySQLBasedService implements AuthServ
         }
     }
 
+    @Override
+    public void markFinished() {
+
+    }
+
 
     private void checkForResult(AuthResultInfo info) {
         if (info == null) {

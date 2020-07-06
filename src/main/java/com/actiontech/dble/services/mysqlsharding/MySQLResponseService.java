@@ -4,6 +4,7 @@ import com.actiontech.dble.DbleServer;
 import com.actiontech.dble.backend.mysql.CharsetUtil;
 import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
 import com.actiontech.dble.backend.mysql.nio.handler.ResponseHandler;
+import com.actiontech.dble.backend.mysql.proto.handler.Impl.MySQLProtoHandlerImpl;
 import com.actiontech.dble.backend.mysql.xa.TxState;
 import com.actiontech.dble.btrace.provider.XaDelayProvider;
 import com.actiontech.dble.config.Isolations;
@@ -36,21 +37,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
+
 /**
  * Created by szf on 2020/6/29.
  */
 public class MySQLResponseService extends MySQLBasedService {
     private static final Logger LOGGER = LoggerFactory.getLogger(MySQLResponseService.class);
-    private static final int RESULT_STATUS_INIT = 0;
-    private static final int RESULT_STATUS_HEADER = 1;
-    private static final int RESULT_STATUS_FIELD_EOF = 2;
 
 
     private ResponseHandler responseHandler;
 
     protected final AtomicBoolean isHandling = new AtomicBoolean(false);
-
-    private volatile int resultStatus;
 
     private volatile boolean isExecuting = false;
 
@@ -60,14 +57,13 @@ public class MySQLResponseService extends MySQLBasedService {
 
     private volatile NonBlockingSession session;
 
-
     private final MySQLConnectionStatus status = new MySQLConnectionStatus();
 
     private volatile String schema = null;
     private volatile String oldSchema;
     private volatile boolean metaDataSynced = true;
-    protected volatile Map<String, String> usrVariables;
-    protected volatile Map<String, String> sysVariables;
+    protected volatile Map<String, String> usrVariables = new LinkedHashMap<>();
+    protected volatile Map<String, String> sysVariables = new LinkedHashMap<>();
     private final AtomicBoolean logResponse = new AtomicBoolean(false);
     private volatile boolean complexQuery;
     private volatile boolean isDDL = false;
@@ -81,18 +77,47 @@ public class MySQLResponseService extends MySQLBasedService {
     private boolean autocommitSynced;
     private boolean isolationSynced;
 
+    private MysqlBackendLogicHandler logicHandler;
+
+    private static final CommandPacket COMMIT = new CommandPacket();
+    private static final CommandPacket ROLLBACK = new CommandPacket();
+
+    private volatile int totalCommand = 0;
+    private volatile int taskCommand = 0;
+    static {
+        COMMIT.setPacketId(0);
+        COMMIT.setCommand(MySQLPacket.COM_QUERY);
+        COMMIT.setArg("commit".getBytes());
+        ROLLBACK.setPacketId(0);
+        ROLLBACK.setCommand(MySQLPacket.COM_QUERY);
+        ROLLBACK.setArg("rollback".getBytes());
+    }
+
     public MySQLResponseService(AbstractConnection connection) {
         super(connection);
+        this.proto = new MySQLProtoHandlerImpl(false);
+        this.logicHandler = new MysqlBackendLogicHandler(this);
     }
 
     @Override
     public void handleData(ServiceTask task) {
+        LOGGER.info("count of the backend " + totalCommand++);
         handleInnerData(task.getOrgData());
     }
 
+
     @Override
     protected void handleInnerData(byte[] data) {
-        //todo finish this
+        try {
+            if (connection.isClosed()) {
+                return;
+            }
+            logicHandler.handleInnerData(data);
+        } finally {
+            synchronized (this) {
+                currentTask = null;
+            }
+        }
     }
 
     @Override
@@ -100,11 +125,10 @@ public class MySQLResponseService extends MySQLBasedService {
 
     }
 
-    protected void TaskToTotalQueue(ServiceTask task) {
-        handleQueue(DbleServer.getInstance().getBackendBusinessExecutor());
-    }
-
-    protected void handleQueue(final Executor executor) {
+    @Override
+    public void TaskToTotalQueue(ServiceTask task) {
+        LOGGER.info("count of the xxxxxxxxxxxxxxxxxxxxxx " + taskCommand++);
+        Executor executor = DbleServer.getInstance().getBackendBusinessExecutor();
         if (isHandling.compareAndSet(false, true)) {
             executor.execute(new Runnable() {
                 @Override
@@ -116,7 +140,9 @@ public class MySQLResponseService extends MySQLBasedService {
                     } finally {
                         isHandling.set(false);
                         if (taskQueue.size() > 0) {
-                            handleQueue(executor);
+                            TaskToTotalQueue(null);
+                        } else {
+                            LOGGER.info("taskQueue size  == " + taskQueue.size());
                         }
                     }
                 }
@@ -131,14 +157,14 @@ public class MySQLResponseService extends MySQLBasedService {
             // clear all data from the client
             LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1000));
         }
-        resultStatus = RESULT_STATUS_INIT;
+        logicHandler.reset();
         connection.close("handle data error:" + e.getMessage());
     }
 
 
     private void handleInnerData() {
         ServiceTask task;
-
+        LOGGER.info("LOOP FOR BACKEND " + Thread.currentThread().getName() + " " + taskQueue.size());
         //threadUsageStat start
         String threadName = null;
         ThreadWorkUsage workUsage = null;
@@ -216,7 +242,6 @@ public class MySQLResponseService extends MySQLBasedService {
             }
             return executed;
         }
-
     }
 
 
@@ -522,6 +547,19 @@ public class MySQLResponseService extends MySQLBasedService {
         return new WriteToBackendTask(this, packet);
     }
 
+    public void signal() {
+        if (recycler != null) {
+            recycler.signal();
+        }
+    }
+
+    public void rollback() {
+        ROLLBACK.write(this);
+    }
+
+    public void commit() {
+        COMMIT.write(this);
+    }
 
     public BackendConnection getConnection() {
         return (BackendConnection) connection;

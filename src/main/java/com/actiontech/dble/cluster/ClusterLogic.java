@@ -29,9 +29,6 @@ import com.actiontech.dble.cluster.zkprocess.parse.XmlProcessBase;
 import com.actiontech.dble.config.ConfigFileName;
 import com.actiontech.dble.config.model.ClusterConfig;
 import com.actiontech.dble.config.model.SystemConfig;
-import com.actiontech.dble.manager.response.ReloadConfig;
-import com.actiontech.dble.manager.response.RollbackConfig;
-import com.actiontech.dble.manager.response.ShowBinlogStatus;
 import com.actiontech.dble.meta.ReloadManager;
 import com.actiontech.dble.meta.ViewMeta;
 import com.actiontech.dble.net.FrontendConnection;
@@ -128,12 +125,12 @@ public final class ClusterLogic {
         //step 2  try to lock all the commit
         DbleServer.getInstance().getBackupLocked().compareAndSet(false, true);
         LOGGER.info("start pause for binlog status");
-        boolean isPaused = ShowBinlogStatus.waitAllSession();
-        if (!isPaused) {
+        //boolean isPaused = ShowBinlogStatus.waitAllSession();
+        /*if (!isPaused) {
             cleanBackupLocked();
             ClusterHelper.createSelfTempNode(ClusterPathUtil.getBinlogPauseStatus(), "Error can't wait all session finished ");
             return;
-        }
+        }*/
         try {
             ClusterHelper.createSelfTempNode(ClusterPathUtil.getBinlogPauseStatus(), ClusterPathUtil.SUCCESS);
         } catch (Exception e) {
@@ -233,10 +230,10 @@ public final class ClusterLogic {
         try {
             ClusterDelayProvider.delayBeforeSlaveRollback();
             try {
-                boolean result = RollbackConfig.rollback(TRIGGER_TYPE_CLUSTER);
+                /*boolean result = RollbackConfig.rollback(TRIGGER_TYPE_CLUSTER);
                 if (!checkLocalResult(result)) {
                     return;
-                }
+                }*/
             } catch (Exception e) {
                 LOGGER.warn("rollback config for cluster error: ", e);
                 throw e;
@@ -271,10 +268,10 @@ public final class ClusterLogic {
                     return;
                 }
                 try {
-                    boolean result = ReloadConfig.reloadAll(Integer.parseInt(params));
+                    /*boolean result = ReloadConfig.reloadAll(Integer.parseInt(params));
                     if (!checkLocalResult(result)) {
                         return;
-                    }
+                    }*/
                 } catch (Exception e) {
                     LOGGER.warn("reload config for cluster error: ", e);
                     throw e;

@@ -17,8 +17,7 @@ import com.actiontech.dble.config.Isolations;
 import com.actiontech.dble.config.model.SystemConfig;
 import com.actiontech.dble.config.model.db.DbInstanceConfig;
 import com.actiontech.dble.net.AbstractConnection;
-import com.actiontech.dble.net.NIOConnector;
-import com.actiontech.dble.net.NIOProcessor;
+import com.actiontech.dble.net.IOProcessor;
 import com.actiontech.dble.net.handler.BackEndCleaner;
 import com.actiontech.dble.net.mysql.*;
 import com.actiontech.dble.route.RouteResultsetNode;
@@ -35,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.nio.channels.AsynchronousSocketChannel;
@@ -271,9 +269,9 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
         return true;
     }
 
-    public void setProcessor(NIOProcessor processor) {
-        super.setProcessor(processor);
-        processor.addBackend(this);
+    public void setProcessor(IOProcessor processor) {
+        /*super.setProcessor(processor);
+        processor.addBackend(this);*/
     }
 
     void authenticate() {
@@ -741,7 +739,7 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
                     new InetSocketAddress(getHost(), getPort()), this,
                     (CompletionHandler) DbleServer.getInstance().getConnector());
         } else {
-            ((NIOConnector) DbleServer.getInstance().getConnector()).postConnect(this);
+           // (() DbleServer.getInstance().getConnector()).postConnect(this);
         }
     }
 

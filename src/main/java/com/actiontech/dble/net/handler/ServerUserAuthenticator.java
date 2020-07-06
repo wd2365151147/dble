@@ -38,12 +38,12 @@ public class ServerUserAuthenticator extends FrontendAuthenticator {
         sc.setUserConfig((ServerUserConfig) userConfig);
         sc.setUser(user);
         if (userConfig instanceof ShardingUserConfig) {
-            sc.setQueryHandler(new ServerQueryHandler(sc));
+           /* sc.setQueryHandler(new ServerQueryHandler(sc));
             sc.setLoadDataInfileHandler(new ServerLoadDataInfileHandler(sc));
             sc.setPrepareHandler(new ServerPrepareHandler(sc));
             SystemConfig sys = SystemConfig.getInstance();
             sc.setTxIsolation(sys.getTxIsolation());
-            sc.setSession2(new NonBlockingSession(sc));
+            sc.setSession2(new NonBlockingSession(sc));*/
             sc.getSession2().setRowCount(0);
             sc.setAuthenticated(true);
             sc.setSchema(auth.getDatabase());

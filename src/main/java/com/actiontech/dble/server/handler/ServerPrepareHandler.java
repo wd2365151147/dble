@@ -65,7 +65,7 @@ public class ServerPrepareHandler implements FrontendPrepareHandler {
         int paramCount = getParamCount(sql);
         PreparedStatement pStmt = new PreparedStatement(++pStmtId, sql, columnCount, paramCount);
         pStmtForId.put(pStmt.getId(), pStmt);
-        PreparedStmtResponse.response(pStmt, service.getConnection());
+        PreparedStmtResponse.response(pStmt, service);
     }
 
     @Override

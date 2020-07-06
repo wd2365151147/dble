@@ -193,11 +193,11 @@ public final class XAStateLog {
         IN_MEMORY_REPOSITORY.put(xaTxId, coordinatorLogEntry);
     }
 
-    public static void initRecoveryLog(String xaTxId, int position, MySQLConnection conn) {
+    public static void initRecoveryLog(String xaTxId, int position, MySQLResponseService service) {
         CoordinatorLogEntry coordinatorLogEntry = IN_MEMORY_REPOSITORY.get(xaTxId);
-        long expires = ((RouteResultsetNode) conn.getAttachment()).getMultiplexNum().longValue();
-        coordinatorLogEntry.getParticipants()[position] = new ParticipantLogEntry(xaTxId, conn.getHost(), conn.getPort(), expires,
-                conn.getSchema(), conn.getXaStatus());
+        long expires = ((RouteResultsetNode) service.getAttachment()).getMultiplexNum().longValue();
+        coordinatorLogEntry.getParticipants()[position] = new ParticipantLogEntry(xaTxId, service.getConnection().getHost(), service.getConnection().getPort(), expires,
+                service.getSchema(), service.getXaStatus());
         flushMemoryRepository(xaTxId, coordinatorLogEntry);
     }
 

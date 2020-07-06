@@ -3,6 +3,7 @@ package com.actiontech.dble.backend.mysql.nio.handler.transaction.normal.stage;
 import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
 import com.actiontech.dble.backend.mysql.nio.handler.transaction.ImplicitCommitHandler;
 import com.actiontech.dble.backend.mysql.nio.handler.transaction.TransactionStage;
+import com.actiontech.dble.net.connection.BackendConnection;
 import com.actiontech.dble.server.NonBlockingSession;
 
 import java.util.List;
@@ -10,10 +11,10 @@ import java.util.List;
 public class CommitStage implements TransactionStage {
 
     private final NonBlockingSession session;
-    private final List<MySQLConnection> conns;
+    private final List<BackendConnection> conns;
     private ImplicitCommitHandler handler;
 
-    public CommitStage(NonBlockingSession session, List<MySQLConnection> conns, ImplicitCommitHandler handler) {
+    public CommitStage(NonBlockingSession session, List<BackendConnection> conns, ImplicitCommitHandler handler) {
         this.session = session;
         this.conns = conns;
         this.handler = handler;
@@ -21,8 +22,8 @@ public class CommitStage implements TransactionStage {
 
     @Override
     public void onEnterStage() {
-        for (MySQLConnection con : conns) {
-            con.commit();
+        for (BackendConnection con : conns) {
+            con.getBackendService().commit();
         }
         session.setDiscard(true);
     }
