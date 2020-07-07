@@ -97,6 +97,12 @@ public abstract class AbstractService implements Service {
         }
     }
 
+    public void cleanup(){
+        this.currentTask = null;
+        this.taskQueue.clear();
+
+    }
+
     public void register() throws IOException {
 
     }
@@ -143,5 +149,7 @@ public abstract class AbstractService implements Service {
     public ByteBuffer writeToBuffer(byte[] src, ByteBuffer buffer) {
         return connection.writeToBuffer(src, buffer);
     }
+
+
 
 }

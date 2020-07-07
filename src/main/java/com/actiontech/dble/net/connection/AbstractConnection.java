@@ -10,6 +10,7 @@ import com.actiontech.dble.net.service.AbstractService;
 import com.actiontech.dble.net.service.AuthResultInfo;
 import com.actiontech.dble.net.service.Service;
 import com.actiontech.dble.util.TimeUtil;
+import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,20 +97,61 @@ public abstract class AbstractConnection implements Connection {
         }
         netInBytes += got;
         //LOGGER.debug("-------------------------------------------NET IN BYTES ======== " + netInBytes);
-        if(netInBytes > 15000){
+        if (netInBytes > 15000) {
             LOGGER.debug("----");
         }
         service.handle(readBuffer);
     }
 
 
-    public void close(String reason) {
 
+    public void close(String reason) {
+        if (!isClosed) {
+            closeSocket();
+            isClosed = true;
+            if (processor != null) {
+                processor.removeConnection(this);
+            }
+
+            this.cleanup();
+            isSupportCompress = false;
+
+            // ignore null information
+            if (Strings.isNullOrEmpty(reason)) {
+                return;
+            }
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("close connection,reason:" + reason + " ," + this);
+            }
+            if (reason.contains("connection,reason:java.net.ConnectException")) {
+                throw new RuntimeException(reason);
+            }
+        } else {
+            // make sure buffer recycle again, avoid buffer leak
+            this.cleanup();
+        }
     }
 
     public void close(Exception exception) {
-
+        LOGGER.info("get Exception close ", exception);
+        this.close(exception.getMessage());
     }
+
+    private void closeSocket() {
+        if (channel != null) {
+            try {
+                channel.close();
+            } catch (Exception e) {
+                LOGGER.info("AbstractConnectionCloseError", e);
+            }
+
+            boolean closed = !channel.isOpen();
+            if (!closed) {
+                LOGGER.info("close socket of connnection failed " + this);
+            }
+        }
+    }
+
 
 
     public void compactReadBuffer(ByteBuffer buffer, int offset) {
@@ -209,7 +251,7 @@ public abstract class AbstractConnection implements Connection {
     }
 
 
-    public Service getService() {
+    public AbstractService getService() {
         return service;
     }
 
@@ -318,7 +360,6 @@ public abstract class AbstractConnection implements Connection {
 
 
     public void onConnectFailed(Throwable e) {
-
     }
 
     public synchronized void cleanup() {
@@ -327,6 +368,8 @@ public abstract class AbstractConnection implements Connection {
             this.recycle(readBuffer);
             this.readBuffer = null;
         }
+
+        service.cleanup();
 
         /** todo : 压缩和解压的故事不应该在这网络级别进行处理
          if (!decompressUnfinishedDataQueue.isEmpty()) {

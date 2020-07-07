@@ -5,11 +5,13 @@
  */
 package com.actiontech.dble.net;
 
-import com.actiontech.dble.backend.BackendConnection;
 import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
 import com.actiontech.dble.backend.mysql.xa.TxState;
 import com.actiontech.dble.buffer.BufferPool;
 import com.actiontech.dble.config.model.SystemConfig;
+import com.actiontech.dble.net.connection.BackendConnection;
+import com.actiontech.dble.net.connection.AbstractConnection;
+import com.actiontech.dble.net.connection.FrontendConnection;
 import com.actiontech.dble.net.connection.PooledConnection;
 import com.actiontech.dble.statistic.CommandCount;
 import org.slf4j.Logger;
@@ -65,12 +67,9 @@ public final class IOProcessor {
             total += frontend.getWriteQueue().size();
         }
         for (BackendConnection back : backends.values()) {
-            if (back instanceof MySQLConnection) {
-                total += ((MySQLConnection) back).getWriteQueue().size();
-            }
+            total += back.getWriteQueue().size();
         }
         return total;
-
     }
 
     public CommandCount getCommands() {
@@ -178,7 +177,7 @@ public final class IOProcessor {
                 continue;
             }
 
-            //Active/IDLE/PREPARED XA backends will not be checked
+            /*//Active/IDLE/PREPARED XA backends will not be checked
             if (c instanceof MySQLConnection) {
                 MySQLConnection m = (MySQLConnection) c;
                 if (m.isClosed()) {
@@ -188,7 +187,7 @@ public final class IOProcessor {
                 if (m.getXaStatus() != null && m.getXaStatus() != TxState.TX_INITIALIZE_STATE) {
                     continue;
                 }
-            }
+            }*/
 
             //todo 空闲检查需要重新写一套
            /* // close the conn which executeTimeOut

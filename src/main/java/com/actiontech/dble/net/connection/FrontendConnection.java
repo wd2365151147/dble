@@ -2,6 +2,8 @@ package com.actiontech.dble.net.connection;
 
 import com.actiontech.dble.net.SocketWR;
 import com.actiontech.dble.net.service.AuthResultInfo;
+import com.actiontech.dble.net.service.FrontEndService;
+import com.actiontech.dble.singleton.FrontendUserManager;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -36,7 +38,7 @@ public class FrontendConnection extends AbstractConnection {
 
     @Override
     public void businessClose(String reason) {
-
+        this.close(reason);
     }
 
     @Override
@@ -52,6 +54,13 @@ public class FrontendConnection extends AbstractConnection {
     @Override
     public void stopFlowControl() {
 
+    }
+
+    public synchronized void cleanup() {
+        super.cleanup();
+        if (getService() instanceof FrontEndService) {
+            ((FrontEndService) getService()).userConnectionCount();
+        }
     }
 
 

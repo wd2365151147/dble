@@ -51,6 +51,11 @@ public class MySQLFrontAuthService extends MySQLBasedService implements AuthServ
     }
 
     @Override
+    public void onConnectFailed(Throwable e) {
+
+    }
+
+    @Override
     public void handleInnerData(byte[] data) {
         this.setPacketId(data[3]);
         if (data.length == QuitPacket.QUIT.length && data[4] == MySQLPacket.COM_QUIT) {

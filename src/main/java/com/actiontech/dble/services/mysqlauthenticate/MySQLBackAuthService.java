@@ -148,4 +148,10 @@ public class MySQLBackAuthService extends MySQLBasedService implements AuthServi
     }
 
 
+    @Override
+    public void onConnectFailed(Throwable e) {
+        if (listener != null) {
+            listener.onCreateFail((PooledConnection) connection, e);
+        }
+    }
 }

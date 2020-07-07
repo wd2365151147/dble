@@ -63,8 +63,11 @@ public class BackendConnection extends PooledConnection {
 
     @Override
     public void businessClose(String reason) {
-
+        this.getBackendService().setResponseHandler(null);
+        this.close(reason);
     }
+
+
 
     @Override
     public void setConnProperties(AuthResultInfo info) {

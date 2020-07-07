@@ -18,6 +18,7 @@ import com.actiontech.dble.net.mysql.AuthPacket;
 import com.actiontech.dble.net.mysql.ErrorPacket;
 import com.actiontech.dble.net.mysql.MySQLPacket;
 import com.actiontech.dble.net.service.AuthResultInfo;
+import com.actiontech.dble.net.service.FrontEndService;
 import com.actiontech.dble.route.RouteResultset;
 import com.actiontech.dble.route.parser.util.Pair;
 import com.actiontech.dble.server.NonBlockingSession;
@@ -31,6 +32,7 @@ import com.actiontech.dble.server.parser.ServerParse;
 import com.actiontech.dble.server.response.InformationSchemaProfiling;
 import com.actiontech.dble.server.util.SchemaUtil;
 import com.actiontech.dble.services.MySQLBasedService;
+import com.actiontech.dble.singleton.FrontendUserManager;
 import com.actiontech.dble.singleton.RouteService;
 import com.actiontech.dble.statistic.CommandCount;
 import com.actiontech.dble.util.SplitUtil;
@@ -48,7 +50,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Created by szf on 2020/6/18.
  */
-public class MySQLShardingService extends MySQLBasedService {
+public class MySQLShardingService extends MySQLBasedService implements FrontEndService {
 
     protected static final Logger LOGGER = LoggerFactory.getLogger(MySQLShardingService.class);
 
@@ -719,5 +721,10 @@ public class MySQLShardingService extends MySQLBasedService {
 
     public void setSptPrepare(ServerSptPrepare sptprepare) {
         this.sptprepare = sptprepare;
+    }
+
+    @Override
+    public void userConnectionCount() {
+        FrontendUserManager.getInstance().countDown(user, false);
     }
 }

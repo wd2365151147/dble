@@ -3,6 +3,7 @@ package com.actiontech.dble.net.connection;
 
 import com.actiontech.dble.backend.pool.ConnectionPool;
 import com.actiontech.dble.net.SocketWR;
+import com.actiontech.dble.net.service.AuthService;
 
 import java.nio.channels.NetworkChannel;
 import java.util.Comparator;
@@ -41,7 +42,19 @@ public abstract class PooledConnection extends AbstractConnection {
         super(channel, socketWR);
     }
 
-    public boolean compareAndSet(int expect, int update){
+    public void connectionCount() {
+        if (this.poolRelated != null) {
+            poolRelated.close(this);
+        }
+    }
+
+    public void onConnectFailed(Throwable e) {
+        if (getService() instanceof AuthService) {
+            ((AuthService) getService()).onConnectFailed(e);
+        }
+    }
+
+    public boolean compareAndSet(int expect, int update) {
         return state.compareAndSet(expect, update);
     }
 

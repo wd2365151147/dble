@@ -11,4 +11,5 @@ public interface Service {
 
     void execute(ServiceTask task);
 
+    void cleanup();
 }

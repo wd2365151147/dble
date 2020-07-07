@@ -7,5 +7,7 @@ import java.io.IOException;
  */
 public interface AuthService {
 
-    public abstract void register() throws IOException;
+    void register() throws IOException;
+
+    void onConnectFailed(Throwable e);
 }
