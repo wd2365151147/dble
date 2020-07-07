@@ -5,6 +5,7 @@ import com.actiontech.dble.backend.mysql.CharsetUtil;
 import com.actiontech.dble.config.model.SystemConfig;
 import com.actiontech.dble.net.IOProcessor;
 import com.actiontech.dble.net.SocketWR;
+import com.actiontech.dble.net.WriteOutTask;
 import com.actiontech.dble.net.mysql.CharsetNames;
 import com.actiontech.dble.net.service.AbstractService;
 import com.actiontech.dble.net.service.AuthResultInfo;
@@ -29,7 +30,7 @@ public abstract class AbstractConnection implements Connection {
 
     protected final NetworkChannel channel;
 
-    private final SocketWR socketWR;
+    protected final SocketWR socketWR;
 
     protected volatile boolean isClosed = false;
 
@@ -37,6 +38,7 @@ public abstract class AbstractConnection implements Connection {
     private volatile AbstractService service;
     protected IOProcessor processor;
 
+    protected volatile String closeReason;
 
     //真实的net层级的信息
     protected String host;
@@ -49,7 +51,7 @@ public abstract class AbstractConnection implements Connection {
     protected volatile ByteBuffer readBuffer;
 
     //写出队列，由NIOSokecetWR写入写出
-    protected final ConcurrentLinkedQueue<ByteBuffer> writeQueue = new ConcurrentLinkedQueue<>();
+    protected final ConcurrentLinkedQueue<WriteOutTask> writeQueue = new ConcurrentLinkedQueue<>();
 
     private volatile boolean flowControlled;
 
@@ -104,7 +106,6 @@ public abstract class AbstractConnection implements Connection {
     }
 
 
-
     public void close(String reason) {
         if (!isClosed) {
             closeSocket();
@@ -151,7 +152,6 @@ public abstract class AbstractConnection implements Connection {
             }
         }
     }
-
 
 
     public void compactReadBuffer(ByteBuffer buffer, int offset) {
@@ -330,7 +330,7 @@ public abstract class AbstractConnection implements Connection {
             ByteBuffer newBuffer = CompressUtil.compressMysqlPacket(buffer, this, compressUnfinishedDataQueue);
             writeQueue.offer(newBuffer);
         } else {*/
-        writeQueue.offer(buffer);
+        writeQueue.offer(new WriteOutTask(buffer, false));
 
         // if ansyn write finished event got lock before me ,then writing
         // flag is set false but not start a write request
@@ -379,9 +379,9 @@ public abstract class AbstractConnection implements Connection {
          if (!compressUnfinishedDataQueue.isEmpty()) {
          compressUnfinishedDataQueue.clear();
          }**/
-        ByteBuffer buffer;
-        while ((buffer = writeQueue.poll()) != null) {
-            recycle(buffer);
+        WriteOutTask task;
+        while ((task = writeQueue.poll()) != null) {
+            recycle(task.getBuffer());
         }
     }
 
@@ -403,7 +403,7 @@ public abstract class AbstractConnection implements Connection {
         this.service.register();
     }
 
-    public ConcurrentLinkedQueue<ByteBuffer> getWriteQueue() {
+    public ConcurrentLinkedQueue<WriteOutTask> getWriteQueue() {
         return writeQueue;
     }
 
@@ -465,7 +465,7 @@ public abstract class AbstractConnection implements Connection {
         this.port = port;
     }
 
-    public void setService(AbstractService service) {
+    public synchronized void setService(AbstractService service) {
         this.service = service;
     }
 
@@ -510,6 +510,10 @@ public abstract class AbstractConnection implements Connection {
         isSupportCompress = supportCompress;
     }
 
+
+    public String getCloseReason() {
+        return closeReason;
+    }
 
     public IOProcessor getProcessor() {
         return processor;

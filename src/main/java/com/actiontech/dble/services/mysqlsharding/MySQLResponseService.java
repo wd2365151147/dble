@@ -84,6 +84,7 @@ public class MySQLResponseService extends MySQLBasedService {
 
     private volatile int totalCommand = 0;
     private volatile int taskCommand = 0;
+
     static {
         COMMIT.setPacketId(0);
         COMMIT.setCommand(MySQLPacket.COM_QUERY);
@@ -435,7 +436,6 @@ public class MySQLResponseService extends MySQLBasedService {
 
 
     public void release() {
-
         if (!metaDataSynced) { // indicate connection not normal finished
             LOGGER.info("can't sure connection syn result,so close it " + this);
             this.responseHandler = null;
@@ -467,6 +467,35 @@ public class MySQLResponseService extends MySQLBasedService {
         logResponse.set(false);
         ((PooledConnection) connection).getPoolRelated().release((PooledConnection) connection);
     }
+
+    public void onConnectionClose(String reason) {
+        final ResponseHandler handler = responseHandler;
+        final MySQLResponseService responseService = this;
+        DbleServer.getInstance().getComplexQueryExecutor().execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    responseService.backendSpecialCleanUp();
+                    handler.connectionClose(responseService, reason);
+                } catch (Throwable e) {
+                    LOGGER.warn("get error close mysql connection ", e);
+                }
+            }
+        });
+    }
+
+    @Override
+    public void cleanup() {
+        super.cleanup();
+        backendSpecialCleanUp();
+    }
+
+    public void backendSpecialCleanUp() {
+        this.setExecuting(false);
+        this.setRowDataFlowing(false);
+        this.signal();
+    }
+
 
     public String compactInfo() {
         return "MySQLConnection host=" + connection.getHost() + ", port=" + connection.getPort() + ", schema=" + schema;

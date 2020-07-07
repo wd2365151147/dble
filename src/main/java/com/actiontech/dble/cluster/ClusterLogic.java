@@ -31,7 +31,6 @@ import com.actiontech.dble.config.model.ClusterConfig;
 import com.actiontech.dble.config.model.SystemConfig;
 import com.actiontech.dble.meta.ReloadManager;
 import com.actiontech.dble.meta.ViewMeta;
-import com.actiontech.dble.net.FrontendConnection;
 import com.actiontech.dble.net.IOProcessor;
 import com.actiontech.dble.net.connection.BackendConnection;
 import com.actiontech.dble.route.RouteResultsetNode;
@@ -322,7 +321,8 @@ public final class ClusterLogic {
                         try {
                             boolean nextTurn = false;
                             for (IOProcessor processor : DbleServer.getInstance().getFrontProcessors()) {
-                                for (Map.Entry<Long, FrontendConnection> entry : processor.getFrontends().entrySet()) {
+                                //todo pause should be rewrite
+                                /*for (Map.Entry<Long, FrontendConnection> entry : processor.getFrontends().entrySet()) {
                                     if (entry.getValue() instanceof ServerConnection) {
                                         ServerConnection sconnection = (ServerConnection) entry.getValue();
                                         for (Map.Entry<RouteResultsetNode, BackendConnection> conEntry : sconnection.getSession2().getTargetMap().entrySet()) {
@@ -335,7 +335,7 @@ public final class ClusterLogic {
                                             break;
                                         }
                                     }
-                                }
+                                }*/
                                 if (nextTurn) {
                                     break;
                                 }

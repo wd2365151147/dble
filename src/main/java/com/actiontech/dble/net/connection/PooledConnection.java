@@ -42,10 +42,12 @@ public abstract class PooledConnection extends AbstractConnection {
         super(channel, socketWR);
     }
 
-    public void connectionCount() {
+    @Override
+    public void cleanup() {
         if (this.poolRelated != null) {
             poolRelated.close(this);
         }
+        super.cleanup();
     }
 
     public void onConnectFailed(Throwable e) {

@@ -7,9 +7,9 @@ package com.actiontech.dble.server.handler;
 
 import com.actiontech.dble.DbleServer;
 import com.actiontech.dble.config.ErrorCode;
-import com.actiontech.dble.net.FrontendConnection;
 import com.actiontech.dble.net.IOProcessor;
 import com.actiontech.dble.net.connection.BackendConnection;
+import com.actiontech.dble.net.connection.FrontendConnection;
 import com.actiontech.dble.net.mysql.OkPacket;
 import com.actiontech.dble.route.RouteResultsetNode;
 import com.actiontech.dble.server.NonBlockingSession;
@@ -60,7 +60,8 @@ public final class KillHandler {
      * @param service  serverConnection
      */
     private static void killQuery(long id, MySQLShardingService service) {
-        FrontendConnection killConn;
+        //todo kill
+        /*FrontendConnection killConn;
         if (id == service.getConnection().getId()) {
             service.writeErrMessage(ErrorCode.ER_QUERY_INTERRUPTED, "Query was interrupted.");
             return;
@@ -109,7 +110,7 @@ public final class KillHandler {
                     backendConnection.close("Query was interrupted.");
                 }
             }
-        }
+        }*/
     }
 
     /**
@@ -127,7 +128,8 @@ public final class KillHandler {
             return;
         }
 
-        FrontendConnection fc = findFrontConn(id);
+        //todo kill should be rewrite
+        /*FrontendConnection fc = findFrontConn(id);
         if (fc == null) {
             service.writeErrMessage(ErrorCode.ER_NO_SUCH_THREAD, "Unknown connection id:" + id);
             return;
@@ -135,7 +137,7 @@ public final class KillHandler {
             service.writeErrMessage(ErrorCode.ER_NO_SUCH_THREAD, "can't kill other user's connection" + id);
             return;
         }
-        fc.killAndClose("killed");
+        fc.killAndClose("killed");*/
 
         boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
         getOkPacket(service).write(service.getConnection());

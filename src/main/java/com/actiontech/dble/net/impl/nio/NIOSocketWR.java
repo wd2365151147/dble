@@ -7,6 +7,7 @@ package com.actiontech.dble.net.impl.nio;
 
 import com.actiontech.dble.config.FlowControllerConfig;
 import com.actiontech.dble.net.SocketWR;
+import com.actiontech.dble.net.WriteOutTask;
 import com.actiontech.dble.net.connection.AbstractConnection;
 import com.actiontech.dble.singleton.WriteQueueFlowController;
 import org.slf4j.Logger;
@@ -28,9 +29,9 @@ public class NIOSocketWR extends SocketWR {
     private AbstractConnection con;
     private SocketChannel channel;
     private final AtomicBoolean writing = new AtomicBoolean(false);
-    private ConcurrentLinkedQueue<ByteBuffer> writeQueue;
+    private ConcurrentLinkedQueue<WriteOutTask> writeQueue;
 
-    private volatile ByteBuffer leftoverWriteBuffer;
+    private volatile WriteOutTask leftoverWriteTask;
 
     public void initFromConnection(AbstractConnection con) {
         this.con = con;
@@ -83,7 +84,7 @@ public class NIOSocketWR extends SocketWR {
     public boolean registerWrite(ByteBuffer buffer) {
 
         writing.set(true);
-        leftoverWriteBuffer = buffer;
+        leftoverWriteTask = new WriteOutTask(buffer, false);
         buffer.flip();
         try {
             write0();
@@ -115,14 +116,12 @@ public class NIOSocketWR extends SocketWR {
     private boolean write0() throws IOException {
 
         int flowControlCount = -1;
-        boolean quitFlag = false;
         int written = 0;
-        ByteBuffer buffer = leftoverWriteBuffer;
+        boolean quitFlag = false;
+        ByteBuffer buffer = leftoverWriteTask == null ? null : leftoverWriteTask.getBuffer();
         if (buffer != null) {
             while (buffer.hasRemaining()) {
-                if (buffer.position() == 5 && bufferIsQuit(buffer)) {
-                    quitFlag = true;
-                }
+                quitFlag = leftoverWriteTask == null ? false : leftoverWriteTask.closeFlag();
                 try {
                     written = channel.write(buffer);
                     if (written > 0) {
@@ -131,13 +130,12 @@ public class NIOSocketWR extends SocketWR {
                         break;
                     }
                 } catch (Throwable e) {
-                    leftoverWriteBuffer = null;
+                    leftoverWriteTask = null;
                     con.recycle(buffer);
                     if (!quitFlag) {
                         throw e;
                     } else {
-                        startClearCon();
-                        con.close("write data with error");
+                        con.close(con.getCloseReason());
                         LOGGER.info("write quit error and ignore ");
                         return true;
                     }
@@ -148,20 +146,21 @@ public class NIOSocketWR extends SocketWR {
 
             if (quitFlag) {
                 con.recycle(buffer);
-                startClearCon();
+                con.close(con.getCloseReason());
                 return true;
             }
+
             if (buffer.hasRemaining()) {
                 return false;
             } else {
-                leftoverWriteBuffer = null;
+                leftoverWriteTask = null;
                 con.recycle(buffer);
             }
         }
-        while ((buffer = writeQueue.poll()) != null) {
-            if (buffer.position() == 5 && bufferIsQuit(buffer)) {
-                quitFlag = true;
-            }
+        WriteOutTask task;
+        while ((task = writeQueue.poll()) != null) {
+            quitFlag = leftoverWriteTask == null ? false : leftoverWriteTask.closeFlag();
+            buffer = task.getBuffer();
             if (buffer.limit() == 0) {
                 con.recycle(buffer);
                 con.close("quit send");
@@ -180,26 +179,19 @@ public class NIOSocketWR extends SocketWR {
                 }
             } catch (Throwable e) {
                 con.recycle(buffer);
-                if (!quitFlag) {
-                    throw e;
-                } else {
-                    startClearCon();
-                    con.close("write data with error");
-                    LOGGER.info("write quit error and ignore ");
-                    return true;
-                }
+                throw e;
             }
 
             flowControlCount = checkFlowControl(flowControlCount);
 
             if (quitFlag) {
                 con.recycle(buffer);
-                startClearCon();
+                con.close(con.getCloseReason());
                 return true;
             }
 
             if (buffer.hasRemaining()) {
-                leftoverWriteBuffer = buffer;
+                leftoverWriteTask = task;
                 return false;
             } else {
                 con.recycle(buffer);
@@ -237,15 +229,6 @@ public class NIOSocketWR extends SocketWR {
         } else {
             return -1;
         }
-    }
-
-
-    private void startClearCon() {
-        con.close("");
-        //todo
-        /*if (con instanceof MySQLConnection) {
-            ((MySQLConnection) con).closeInner(null);
-        }*/
     }
 
 

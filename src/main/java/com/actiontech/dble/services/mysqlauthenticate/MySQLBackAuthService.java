@@ -144,6 +144,8 @@ public class MySQLBackAuthService extends MySQLBasedService implements AuthServi
         connection.close("handle data error:" + e.getMessage());
         if (listener != null) {
             listener.onCreateFail((BackendConnection) connection, e);
+        } else if (handler != null) {
+            handler.connectionError(e, null);
         }
     }
 
@@ -152,6 +154,13 @@ public class MySQLBackAuthService extends MySQLBasedService implements AuthServi
     public void onConnectFailed(Throwable e) {
         if (listener != null) {
             listener.onCreateFail((PooledConnection) connection, e);
+        } else if (handler != null) {
+            handler.connectionError(e, null);
         }
+    }
+
+    @Override
+    public void cleanup() {
+        this.onConnectFailed(new Exception(connection.getCloseReason()));
     }
 }

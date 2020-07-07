@@ -100,7 +100,6 @@ public abstract class AbstractService implements Service {
     public void cleanup(){
         this.currentTask = null;
         this.taskQueue.clear();
-
     }
 
     public void register() throws IOException {
