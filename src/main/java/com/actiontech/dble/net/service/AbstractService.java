@@ -45,21 +45,22 @@ public abstract class AbstractService implements Service {
                     connection.readReachEnd();
                     byte[] packetData = result.getPacketData();
                     if (packetData != null) {
-                        LOGGER.debug(" get the packet of length " + packetData.length + " of connection " + connection.toString());
+                        //LOGGER.debug(" get the packet of length " + packetData.length + " of connection " + connection.toString());
                         totalsize += packetData.length;
                         TaskCreate(packetData);
                     }
-                    LOGGER.debug("get OUT OF THE READ BECAUSE OF THE REACH_END_BUFFER");
+                    dataBuffer.clear();
+                    //LOGGER.debug("get OUT OF THE READ BECAUSE OF THE REACH_END_BUFFER");
                     hasReming = false;
                     break;
                 case BUFFER_PACKET_UNCOMPLETE:
                     connection.compactReadBuffer(dataBuffer, result.getOffset());
-                    LOGGER.debug("get OUT OF THE READ BECAUSE OF THE BUFFER_PACKET_UNCOMPLETE");
+                    //LOGGER.debug("get OUT OF THE READ BECAUSE OF THE BUFFER_PACKET_UNCOMPLETE");
                     hasReming = false;
                     break;
                 case BUFFER_NOT_BIG_ENOUGH:
                     connection.ensureFreeSpaceOfReadBuffer(dataBuffer, result.getOffset(), result.getPacketLength());
-                    LOGGER.debug("get OUT OF THE READ BECAUSE OF THE BUFFER_NOT_BIG_ENOUGH");
+                    //LOGGER.debug("get OUT OF THE READ BECAUSE OF THE BUFFER_NOT_BIG_ENOUGH");
                     hasReming = false;
                     break;
                 case STLL_DATA_REMING:
@@ -68,7 +69,7 @@ public abstract class AbstractService implements Service {
                     offset = result.getOffset();
                     continue;
             }
-            LOGGER.info("the read end of the result is +++++++++++++++++++++ " + totalsize);
+            //LOGGER.info("the read end of the result is +++++++++++++++++++++ " + totalsize);
         }
     }
 

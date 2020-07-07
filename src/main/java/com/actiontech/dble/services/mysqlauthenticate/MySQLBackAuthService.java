@@ -118,7 +118,7 @@ public class MySQLBackAuthService extends MySQLBasedService implements AuthServi
 
 
     protected void TaskToTotalQueue(ServiceTask task) {
-        LOGGER.info("get connection data of the task " + task.getOrgData().length);
+        //LOGGER.info("get connection data of the task " + task.getOrgData().length);
         handleQueue(DbleServer.getInstance().getBackendBusinessExecutor(), task);
     }
 

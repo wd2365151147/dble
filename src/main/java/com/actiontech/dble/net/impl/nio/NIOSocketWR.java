@@ -241,6 +241,8 @@ public class NIOSocketWR extends SocketWR {
 
 
     private void startClearCon() {
+        con.close("");
+        //todo
         /*if (con instanceof MySQLConnection) {
             ((MySQLConnection) con).closeInner(null);
         }*/

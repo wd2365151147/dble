@@ -101,7 +101,7 @@ public class MySQLResponseService extends MySQLBasedService {
 
     @Override
     public void handleData(ServiceTask task) {
-        LOGGER.info("count of the backend " + totalCommand++);
+        //LOGGER.info("count of the backend " + totalCommand++);
         handleInnerData(task.getOrgData());
     }
 
@@ -127,7 +127,7 @@ public class MySQLResponseService extends MySQLBasedService {
 
     @Override
     public void TaskToTotalQueue(ServiceTask task) {
-        LOGGER.info("count of the xxxxxxxxxxxxxxxxxxxxxx " + taskCommand++);
+        //LOGGER.info("count of the xxxxxxxxxxxxxxxxxxxxxx " + taskCommand++);
         Executor executor = DbleServer.getInstance().getBackendBusinessExecutor();
         if (isHandling.compareAndSet(false, true)) {
             executor.execute(new Runnable() {
@@ -142,7 +142,7 @@ public class MySQLResponseService extends MySQLBasedService {
                         if (taskQueue.size() > 0) {
                             TaskToTotalQueue(null);
                         } else {
-                            LOGGER.info("taskQueue size  == " + taskQueue.size());
+                            //LOGGER.info("taskQueue size  == " + taskQueue.size());
                         }
                     }
                 }
@@ -164,7 +164,7 @@ public class MySQLResponseService extends MySQLBasedService {
 
     private void handleInnerData() {
         ServiceTask task;
-        LOGGER.info("LOOP FOR BACKEND " + Thread.currentThread().getName() + " " + taskQueue.size());
+        //LOGGER.info("LOOP FOR BACKEND " + Thread.currentThread().getName() + " " + taskQueue.size());
         //threadUsageStat start
         String threadName = null;
         ThreadWorkUsage workUsage = null;

@@ -87,21 +87,6 @@ public class BackendConnection extends PooledConnection {
     }
 
     @Override
-    public boolean compareAndSet(int expect, int update) {
-        return false;
-    }
-
-    @Override
-    public void lazySet(int update) {
-
-    }
-
-    @Override
-    public int getState() {
-        return 0;
-    }
-
-    @Override
     public void release() {
         getBackendService().release();
     }

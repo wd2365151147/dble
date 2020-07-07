@@ -5,7 +5,6 @@
 */
 package com.actiontech.dble.net;
 
-import com.actiontech.dble.DbleServer;
 import com.actiontech.dble.net.factory.FrontendConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

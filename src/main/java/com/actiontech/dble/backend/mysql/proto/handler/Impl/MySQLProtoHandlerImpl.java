@@ -5,6 +5,8 @@ import com.actiontech.dble.backend.mysql.proto.handler.ProtoHandler;
 import com.actiontech.dble.backend.mysql.proto.handler.ProtoHandlerResult;
 import com.actiontech.dble.net.mysql.CharsetNames;
 import com.actiontech.dble.net.mysql.MySQLPacket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
@@ -16,7 +18,7 @@ import static com.actiontech.dble.backend.mysql.proto.handler.ProtoHandlerResult
  * Created by szf on 2020/6/16.
  */
 public class MySQLProtoHandlerImpl implements ProtoHandler {
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(MySQLProtoHandlerImpl.class);
     protected final boolean isSupportCompress;
 
     private byte[] incompleteData = null;
@@ -29,6 +31,12 @@ public class MySQLProtoHandlerImpl implements ProtoHandler {
     public ProtoHandlerResult handle(ByteBuffer dataBuffer, int offset) {
         int position = dataBuffer.position();
         int length = getPacketLength(dataBuffer, offset, isSupportCompress);
+        //LOGGER.debug("THE LENGTH is position " + length + " " + position);
+        if (length > position) {
+            for (int i = 0; i < 30; i++) {
+               // LOGGER.debug(" " + Integer.toHexString(dataBuffer.get(i)));
+            }
+        }
         if (length == -1) {
             if (offset != 0) {
                 return new ProtoHandlerResult(BUFFER_PACKET_UNCOMPLETE, offset);
@@ -65,9 +73,10 @@ public class MySQLProtoHandlerImpl implements ProtoHandler {
             // compact dataBuffer
             if (!dataBuffer.hasRemaining()) {
                 return new ProtoHandlerResult(BUFFER_NOT_BIG_ENOUGH, offset);
+            } else {
+                return new ProtoHandlerResult(BUFFER_PACKET_UNCOMPLETE, offset);
             }
         }
-        return new ProtoHandlerResult(REACH_END_BUFFER, offset);
     }
 
     @Override

@@ -198,7 +198,7 @@ public abstract class MySQLPacket {
      * write to a net connection
      */
     public void write(AbstractConnection connection) {
-        throw new UnsupportedOperationException();
+
     }
 
     /**

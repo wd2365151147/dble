@@ -6,6 +6,8 @@ import com.actiontech.dble.net.SocketWR;
 
 import java.nio.channels.NetworkChannel;
 import java.util.Comparator;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class PooledConnection extends AbstractConnection {
 
@@ -13,6 +15,9 @@ public abstract class PooledConnection extends AbstractConnection {
     private volatile long poolDestroyedTime;
     private volatile String schema;
     private volatile ConnectionPool poolRelated;
+
+    private final AtomicBoolean logResponse = new AtomicBoolean(false);
+    private AtomicInteger state = new AtomicInteger(INITIAL);
 
     public static final int STATE_REMOVED = -4;
     public static final int STATE_HEARTBEAT = -3;
@@ -36,11 +41,17 @@ public abstract class PooledConnection extends AbstractConnection {
         super(channel, socketWR);
     }
 
-    public abstract boolean compareAndSet(int expect, int update);
+    public boolean compareAndSet(int expect, int update){
+        return state.compareAndSet(expect, update);
+    }
 
-    public abstract void lazySet(int update);
+    public void lazySet(int update) {
+        state.lazySet(update);
+    }
 
-    public abstract int getState();
+    public int getState() {
+        return state.get();
+    }
 
     public abstract void release();
 
