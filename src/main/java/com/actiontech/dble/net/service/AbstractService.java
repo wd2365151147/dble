@@ -4,6 +4,7 @@ package com.actiontech.dble.net.service;
 import com.actiontech.dble.backend.mysql.proto.handler.ProtoHandler;
 import com.actiontech.dble.backend.mysql.proto.handler.ProtoHandlerResult;
 import com.actiontech.dble.net.connection.AbstractConnection;
+import com.actiontech.dble.net.mysql.MySQLPacket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,7 +98,7 @@ public abstract class AbstractService implements Service {
         }
     }
 
-    public void cleanup(){
+    public void cleanup() {
         this.currentTask = null;
         this.taskQueue.clear();
     }
@@ -136,6 +137,10 @@ public abstract class AbstractService implements Service {
         this.connection.write(data);
     }
 
+    public void write(MySQLPacket packet) {
+
+    }
+
 
     public boolean isFlowControlled() {
         return this.connection.isFlowControlled();
@@ -148,7 +153,6 @@ public abstract class AbstractService implements Service {
     public ByteBuffer writeToBuffer(byte[] src, ByteBuffer buffer) {
         return connection.writeToBuffer(src, buffer);
     }
-
 
 
 }

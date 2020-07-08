@@ -211,6 +211,7 @@ public abstract class MySQLPacket {
      */
     protected abstract String getPacketInfo();
 
+
     @Override
     public String toString() {
         return getPacketInfo() + "{length=" + packetLength + ",id=" +
