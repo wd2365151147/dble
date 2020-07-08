@@ -19,6 +19,7 @@ import com.actiontech.dble.net.mysql.ErrorPacket;
 import com.actiontech.dble.net.mysql.MySQLPacket;
 import com.actiontech.dble.net.service.AuthResultInfo;
 import com.actiontech.dble.net.service.FrontEndService;
+import com.actiontech.dble.net.service.ServiceTask;
 import com.actiontech.dble.route.RouteResultset;
 import com.actiontech.dble.route.parser.util.Pair;
 import com.actiontech.dble.server.NonBlockingSession;
@@ -44,6 +45,7 @@ import com.alibaba.druid.wall.WallProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -546,6 +548,46 @@ public class MySQLShardingService extends MySQLBasedService implements FrontEndS
             LOGGER.info(s.append(this).append(sql).toString() + " err:" + e.toString(), e);
             String msg = e.getMessage();
             writeErrMessage(ErrorCode.ER_PARSE_ERROR, msg == null ? e.getClass().getSimpleName() : msg);
+        }
+    }
+
+
+    @Override
+    public void write(MySQLPacket packet) {
+        boolean multiQueryFlag = session.multiStatementPacket(packet);
+        if (packet.isEndOfSession()) {
+            //error finished do resource clean up
+            packet.bufferWrite(connection);
+            SerializableLock.getInstance().unLock(this.connection.getId());
+        } else if (packet.isEndOfQuery()) {
+            //normal finish may loop to another round of query
+            packet.bufferWrite(connection);
+            multiStatementNextSql(multiQueryFlag);
+            SerializableLock.getInstance().unLock(this.connection.getId());
+        } else {
+            packet.bufferWrite(connection);
+        }
+    }
+
+    @Override
+    public void writeWithBuffer(MySQLPacket packet, ByteBuffer buffer) {
+        boolean multiQueryFlag = session.multiStatementPacket(packet);
+        if (packet.isEndOfSession()) {
+            //error finished do resource clean up
+
+        }
+        packet.write(buffer, this, true);
+        if (packet.isEndOfQuery() && !packet.isEndOfSession()) {
+            multiStatementNextSql(multiQueryFlag);
+        }
+    }
+
+
+    public void multiStatementNextSql(boolean flag) {
+        if (flag) {
+            session.setRequestTime();
+            session.setQueryStartTime(System.currentTimeMillis());
+            taskMultiQueryCreate(protoLogicHandler.getMultiQueryData());
         }
     }
 

@@ -231,4 +231,15 @@ public abstract class MySQLPacket {
     public void setPacketId(int packetID) {
         this.packetId = (byte) packetID;
     }
+
+    public boolean isEndOfQuery() {
+        return false;
+    }
+
+    public boolean isEndOfSession() {
+        return false;
+    }
+
+    public void markMoreResultsExists() {
+    }
 }

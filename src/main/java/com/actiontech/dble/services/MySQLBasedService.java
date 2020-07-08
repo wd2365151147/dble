@@ -55,7 +55,9 @@ public abstract class MySQLBasedService extends AbstractService {
 
         if (executeTask != null) {
             byte[] data = executeTask.getOrgData();
-            this.setPacketId(data[3]);
+            if (data != null && !executeTask.isReuse()) {
+                this.setPacketId(data[3]);
+            }
             this.handleInnerData(data);
             currentTask = null;
         }

@@ -21,6 +21,8 @@ public class MySQLProtoLogicHandler {
 
     private final MySQLShardingService service;
 
+    private volatile byte[] multiQueryData = null;
+
     MySQLProtoLogicHandler(MySQLShardingService service) {
         this.service = service;
     }
@@ -56,6 +58,7 @@ public class MySQLProtoLogicHandler {
 
 
     public void query(byte[] data) {
+        this.multiQueryData = data;
         String sql = null;
         try {
             MySQLMessage mm = new MySQLMessage(data);
@@ -126,4 +129,8 @@ public class MySQLProtoLogicHandler {
         service.writeDirectly(OkPacket.OK);
     }
 
+
+    public byte[] getMultiQueryData() {
+        return multiQueryData;
+    }
 }

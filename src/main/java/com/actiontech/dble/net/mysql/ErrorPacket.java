@@ -172,4 +172,12 @@ public class ErrorPacket extends MySQLPacket {
     public void setMessage(byte[] message) {
         this.message = message;
     }
+
+    public boolean isEndOfQuery() {
+        return true;
+    }
+
+    public boolean isEndOfSession() {
+        return false;
+    }
 }

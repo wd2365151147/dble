@@ -7,11 +7,19 @@ public class ServiceTask {
 
     private final byte[] orgData;
     private volatile boolean highPriority = false;
+    private final boolean reuse;
     private final Service service;
 
     public ServiceTask(byte[] orgData, Service service) {
         this.orgData = orgData;
         this.service = service;
+        this.reuse = false;
+    }
+
+    public ServiceTask(byte[] orgData, Service service,boolean reuse){
+        this.orgData = orgData;
+        this.service = service;
+        this.reuse = reuse;
     }
 
 
@@ -31,5 +39,8 @@ public class ServiceTask {
         highPriority = true;
     }
 
+    public boolean isReuse(){
+        return reuse;
+    }
 
 }

@@ -6,13 +6,11 @@ import com.actiontech.dble.backend.mysql.proto.handler.ProtoHandler;
 import com.actiontech.dble.backend.mysql.proto.handler.ProtoHandlerResult;
 import com.actiontech.dble.net.connection.AbstractConnection;
 import com.actiontech.dble.net.mysql.MySQLPacket;
-import com.actiontech.dble.server.ServerConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -52,7 +50,7 @@ public abstract class AbstractService implements Service {
                     if (packetData != null) {
                         //LOGGER.debug(" get the packet of length " + packetData.length + " of connection " + connection.toString());
                         totalsize += packetData.length;
-                        TaskCreate(packetData);
+                        taskCreate(packetData);
                     }
                     dataBuffer.clear();
                     //LOGGER.debug("get OUT OF THE READ BECAUSE OF THE REACH_END_BUFFER");
@@ -70,7 +68,7 @@ public abstract class AbstractService implements Service {
                     break;
                 case STLL_DATA_REMING:
                     totalsize += result.getPacketData().length;
-                    TaskCreate(result.getPacketData());
+                    taskCreate(result.getPacketData());
                     offset = result.getOffset();
                     continue;
             }
@@ -78,8 +76,14 @@ public abstract class AbstractService implements Service {
         }
     }
 
-    private void TaskCreate(byte[] packetData) {
+    private void taskCreate(byte[] packetData) {
         ServiceTask task = new ServiceTask(packetData, this);
+        taskQueue.offer(task);
+        TaskToTotalQueue(task);
+    }
+
+    protected void taskMultiQueryCreate(byte[] packetData) {
+        ServiceTask task = new ServiceTask(packetData, this, true);
         taskQueue.offer(task);
         TaskToTotalQueue(task);
     }
@@ -105,7 +109,7 @@ public abstract class AbstractService implements Service {
     public abstract void handleData(ServiceTask task);
 
     public int nextPacketId() {
-        LOGGER.info("get packetid increment " + packetId.get(),new Exception("test"));
+        LOGGER.info("get packetid increment " + packetId.get(), new Exception("test"));
         return packetId.incrementAndGet();
     }
 
@@ -144,13 +148,13 @@ public abstract class AbstractService implements Service {
         }
     }
 
-    public ByteBuffer write(byte[] data, ByteBuffer buffer) {
-
-        return null;
-    }
 
     public void write(MySQLPacket packet) {
         packet.bufferWrite(connection);
+    }
+
+    public void writeWithBuffer(MySQLPacket packet, ByteBuffer buffer) {
+        packet.write(buffer, this, true);
     }
 
     public void recycleBuffer(ByteBuffer buffer) {

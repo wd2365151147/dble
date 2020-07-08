@@ -133,7 +133,7 @@ public class NonBlockingSession implements Session {
         this.outputHandler = outputHandler;
     }
 
-    void setRequestTime() {
+    public void setRequestTime() {
         sessionStage = SessionStage.Read_SQL;
         long requestTime = 0;
 
@@ -951,11 +951,7 @@ public class NonBlockingSession implements Session {
      */
     public boolean multiStatementPacket(MySQLPacket packet, byte packetNum) {
         if (this.isMultiStatement.get()) {
-            if (packet instanceof OkPacket) {
-                ((OkPacket) packet).markMoreResultsExists();
-            } else if (packet instanceof EOFPacket) {
-                ((EOFPacket) packet).markMoreResultsExists();
-            }
+            packet.markMoreResultsExists();
             this.getPacketId().set(packetNum);
             return true;
         }
@@ -988,11 +984,7 @@ public class NonBlockingSession implements Session {
 
     public boolean multiStatementPacket(MySQLPacket packet) {
         if (this.isMultiStatement.get()) {
-            if (packet instanceof OkPacket) {
-                ((OkPacket) packet).markMoreResultsExists();
-            } else if (packet instanceof EOFPacket) {
-                ((EOFPacket) packet).markMoreResultsExists();
-            }
+            packet.markMoreResultsExists();
             return true;
         }
         return false;

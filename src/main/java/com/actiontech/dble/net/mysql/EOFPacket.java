@@ -62,6 +62,8 @@ public class EOFPacket extends MySQLPacket {
         return buffer;
     }
 
+
+
     @Override
     public void bufferWrite(AbstractConnection connection) {
 
@@ -114,5 +116,9 @@ public class EOFPacket extends MySQLPacket {
 
     public void setStatus(int status) {
         this.status = status;
+    }
+
+    public boolean isEndOfQuery() {
+        return false;
     }
 }
