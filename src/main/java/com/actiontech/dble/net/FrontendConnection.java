@@ -171,7 +171,7 @@ public abstract class FrontendConnection extends AbstractConnection {
         err.setErrNo(vendorCode);
         err.setSqlState(StringUtil.encode(sqlState, charsetName.getResults()));
         err.setMessage(StringUtil.encode(msg, charsetName.getResults()));
-        err.write(this);*/
+        err.writeDirectly(this);*/
     }
 
 
@@ -258,7 +258,7 @@ public abstract class FrontendConnection extends AbstractConnection {
             hs.setServerCharsetIndex((byte) (charsetIndex & 0xff));
             hs.setServerStatus(2);
             hs.setRestOfScrambleBuff(rand2);
-            hs.write(this);
+            //hs.write(this);
         }
     }
 

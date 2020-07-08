@@ -8,6 +8,7 @@ package com.actiontech.dble.net.mysql;
 import com.actiontech.dble.backend.mysql.BufferUtil;
 import com.actiontech.dble.backend.mysql.MySQLMessage;
 import com.actiontech.dble.net.FrontendConnection;
+import com.actiontech.dble.net.connection.AbstractConnection;
 import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.singleton.BufferPoolManager;
 import com.actiontech.dble.singleton.SerializableLock;
@@ -72,7 +73,7 @@ public class OkPacket extends MySQLPacket {
         }
     }
 
-    public ByteBuffer write(ByteBuffer buffer, FrontendConnection c) {
+    public ByteBuffer write(ByteBuffer buffer, AbstractConnection c) {
 
         int size = calcPacketSize();
         buffer = c.checkWriteBuffer(buffer, PACKET_HEADER_SIZE + size,
@@ -92,10 +93,11 @@ public class OkPacket extends MySQLPacket {
 
     }
 
-    public void write(FrontendConnection c) {
-        if (c instanceof ServerConnection) {
+    @Override
+    public void bufferWrite(AbstractConnection c) {
+        /*if (c instanceof ServerConnection) {
             SerializableLock.getInstance().unLock(c.getId());
-        }
+        }*/
         ByteBuffer buffer = write(c.allocate(), c);
         c.write(buffer);
     }

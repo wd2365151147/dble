@@ -49,7 +49,7 @@ public abstract class FrontendCommandHandler implements NIOHandler {
             errPacket.setMessage("Got a packet bigger than 'max_allowed_packet' bytes.".getBytes());
             //close the mysql connection if error occur
             errPacket.setPacketId(++packetId);
-            errPacket.write(source);
+            errPacket.writeDirectly(source);
             return;
         }*/
         handleDataByPacket(data);

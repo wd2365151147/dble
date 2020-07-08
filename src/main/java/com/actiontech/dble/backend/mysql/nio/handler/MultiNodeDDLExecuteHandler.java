@@ -86,8 +86,7 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
                 DDLTraceInfo.DDLConnectionStatus.CONN_EXECUTE_ERROR);
         ErrorPacket errPacket = new ErrorPacket();
         errPacket.read(data);
-        byte lastPacketId = packetId;
-        errPacket.setPacketId(++lastPacketId); //just for normal error
+        errPacket.setPacketId(session.getShardingService().nextPacketId()); //just for normal error
         err = errPacket;
         session.resetMultiStatementStatus();
         lock.lock();
@@ -102,7 +101,6 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
             if (decrementToZero((MySQLResponseService) service)) {
                 session.handleSpecial(rrs, false, getDDLErrorInfo());
                 DDLTraceManager.getInstance().endDDL(session.getShardingService(), getDDLErrorInfo());
-                packetId++;
                 if (byteBuffer != null) {
                     session.getFrontConnection().write(byteBuffer);
                 }
@@ -123,8 +121,7 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
         }
         LOGGER.warn("backend connect " + reason + ", conn info:" + service);
         ErrorPacket errPacket = new ErrorPacket();
-        byte lastPacketId = packetId;
-        errPacket.setPacketId(++lastPacketId);
+        errPacket.setPacketId(session.getShardingService().nextPacketId());
         errPacket.setErrNo(ErrorCode.ER_ABORTING_CONNECTION);
         reason = "Connection {dbInstance[" + service.getConnection().getHost() + ":" + service.getConnection().getPort() + "],Schema[" + ((MySQLResponseService) service).getSchema() + "],threadID[" +
                 ((MySQLResponseService) service).getConnection().getThreadId() + "]} was closed ,reason is [" + reason + "]";
@@ -189,11 +186,11 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
                     } else {
                         session.setRowCount(0);
                         DDLTraceManager.getInstance().endDDL(source, null);
-                        ok.setPacketId(++packetId); // OK_PACKET
+                        ok.setPacketId(session.getShardingService().nextPacketId()); // OK_PACKET
                         ok.setMessage(null);
                         ok.setAffectedRows(0);
                         ok.setServerStatus(source.isAutocommit() ? 2 : 1);
-                        boolean multiStatementFlag = session.multiStatementPacket(ok, packetId);
+                        boolean multiStatementFlag = session.multiStatementPacket(ok);
                         doSqlStat();
                         handleEndPacket(ok.toBytes(), true);
                         session.multiStatementNextSql(multiStatementFlag);
@@ -213,12 +210,12 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
 
     private void executeMetaDataFailed() {
         ErrorPacket errPacket = new ErrorPacket();
-        errPacket.setPacketId(++packetId);
+        errPacket.setPacketId(session.getShardingService().nextPacketId());
         errPacket.setErrNo(ErrorCode.ER_META_DATA);
         String errMsg = "Create TABLE OK, but generate metedata failed. The reason may be that the current druid parser can not recognize part of the sql" +
                 " or the user for backend mysql does not have permission to execute the heartbeat sql.";
         errPacket.setMessage(StringUtil.encode(errMsg, session.getShardingService().getCharset().getResults()));
-        session.multiStatementPacket(errPacket, packetId);
+        session.multiStatementPacket(errPacket);
         doSqlStat();
         handleEndPacket(errPacket.toBytes(), false);
     }
@@ -254,7 +251,6 @@ public class MultiNodeDDLExecuteHandler extends MultiNodeQueryHandler {
         if (canResponse()) {
             session.handleSpecial(rrs, false, null);
             DDLTraceManager.getInstance().endDDL(session.getShardingService(), new String(err.getMessage()));
-            packetId++;
             if (byteBuffer == null) {
                 handleEndPacket(err.toBytes(), false);
             } else {

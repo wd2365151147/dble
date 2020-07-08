@@ -9,7 +9,7 @@ package com.actiontech.dble.net.mysql;
 import com.actiontech.dble.backend.mysql.BufferUtil;
 import com.actiontech.dble.backend.mysql.MySQLMessage;
 import com.actiontech.dble.config.Capabilities;
-import com.actiontech.dble.net.FrontendConnection;
+import com.actiontech.dble.net.connection.AbstractConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +77,7 @@ public class HandshakeV10Packet extends MySQLPacket {
         return serverVersion;
     }
 
-    public boolean write(FrontendConnection c) {
+    public void bufferWrite(AbstractConnection c) {
         ByteBuffer buffer = c.allocate();
         BufferUtil.writeUB3(buffer, calcPacketSize());
         buffer.put(packetId);
@@ -97,7 +97,7 @@ public class HandshakeV10Packet extends MySQLPacket {
             buffer.put((byte) 0);
         }
         BufferUtil.writeWithNull(buffer, authPluginName);
-        return c.registerWrite(buffer);
+        c.registerWrite(buffer);
     }
 
     @Override

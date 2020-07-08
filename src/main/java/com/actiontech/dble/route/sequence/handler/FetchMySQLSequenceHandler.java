@@ -37,7 +37,7 @@ public class FetchMySQLSequenceHandler implements ResponseHandler {
                 LOGGER.debug("execute in shardingNode " + seqVal.shardingNode +
                         " for fetch sequence sql " + seqVal.sql);
             }
-            // change Select mode to Update mode. Make sure the query send to the write host
+            // change Select mode to Update mode. Make sure the query send to the writeDirectly host
             mysqlDN.getConnection(mysqlDN.getDatabase(), true, true,
                     new RouteResultsetNode(seqVal.shardingNode, ServerParse.UPDATE,
                             seqVal.sql), this, seqVal);

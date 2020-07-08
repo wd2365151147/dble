@@ -83,9 +83,9 @@ public class MultiNodeQueryHandler extends MultiNodeHandler implements LoadDataR
     @Override
     protected void reset() {
         super.reset();
-        if (rrs.isLoadData()) {
+        /*if (rrs.isLoadData()) {
             packetId = session.getShardingService().getLoadDataInfileHandler().getLastPackId();
-        }
+        }*/
         connRrns.clear();
         this.netOutBytes = 0;
         this.resultSize = 0;
@@ -169,7 +169,7 @@ public class MultiNodeQueryHandler extends MultiNodeHandler implements LoadDataR
         }
         LOGGER.warn("backend connect " + reason + ", conn info:" + service);
         ErrorPacket errPacket = new ErrorPacket();
-        byte lastPacketId = packetId;
+        byte lastPacketId = (byte)session.getShardingService().nextPacketId();
         errPacket.setPacketId(++lastPacketId);
         errPacket.setErrNo(ErrorCode.ER_ABORTING_CONNECTION);
         reason = "Connection {dbInstance[" + service.getConnection().getHost() + ":" + service.getConnection().getPort() + "],Schema[" + ((MySQLResponseService) service).getSchema() + "],threadID[" +
@@ -193,8 +193,7 @@ public class MultiNodeQueryHandler extends MultiNodeHandler implements LoadDataR
     public void connectionError(Throwable e, Object attachment) {
         RouteResultsetNode rrn = (RouteResultsetNode) attachment;
         ErrorPacket errPacket = new ErrorPacket();
-        byte lastPacketId = packetId;
-        errPacket.setPacketId(++lastPacketId);
+        errPacket.setPacketId(session.getShardingService().nextPacketId());
         errPacket.setErrNo(ErrorCode.ER_DB_INSTANCE_ABORTING_CONNECTION);
         String errMsg = "can't connect to shardingNode[" + rrn.getName() + "], due to " + e.getMessage();
         errPacket.setMessage(StringUtil.encode(errMsg, session.getShardingService().getCharset().getResults()));
@@ -223,7 +222,7 @@ public class MultiNodeQueryHandler extends MultiNodeHandler implements LoadDataR
         pauseTime((MySQLResponseService) service);
         ErrorPacket errPacket = new ErrorPacket();
         errPacket.read(data);
-        byte lastPacketId = packetId;
+        byte lastPacketId = (byte)session.getShardingService().nextPacketId();
         errPacket.setPacketId(++lastPacketId); //just for normal error
         err = errPacket;
         session.resetMultiStatementStatus();
@@ -237,7 +236,6 @@ public class MultiNodeQueryHandler extends MultiNodeHandler implements LoadDataR
             }
             errConnection.add((MySQLResponseService) service);
             if (decrementToZero((MySQLResponseService) service)) {
-                packetId++;
                 if (session.closed()) {
                     cleanBuffer();
                 } else if (byteBuffer != null) {
@@ -282,7 +280,7 @@ public class MultiNodeQueryHandler extends MultiNodeHandler implements LoadDataR
                     handleEndPacket(err.toBytes(), AutoTxOperation.ROLLBACK, false);
                     return;
                 }
-                ok.setPacketId(++packetId); // OK_PACKET
+                ok.setPacketId(session.getShardingService().nextPacketId()); // OK_PACKET
                 if (rrs.isLoadData()) {
                     ok.setMessage(("Records: " + affectedRows + "  Deleted: 0  Skipped: 0  Warnings: 0").getBytes());
                     shardingService.getLoadDataInfileHandler().clear();
@@ -392,7 +390,7 @@ public class MultiNodeQueryHandler extends MultiNodeHandler implements LoadDataR
                 if (session.closed()) {
                     cleanBuffer();
                 } else {
-                    boolean multiStatementFlag = session.multiStatementPacket(eof, ++packetId);
+                    boolean multiStatementFlag = session.multiStatementPacket(eof);
                     writeEofResult(eof, source);
                     session.multiStatementNextSql(multiStatementFlag);
                 }
@@ -435,24 +433,17 @@ public class MultiNodeQueryHandler extends MultiNodeHandler implements LoadDataR
                         session.getFrontConnection().getWriteQueue().size() > fconfig.getStart()) {
                     session.getFrontConnection().startFlowControl(((MySQLResponseService) service).getConnection());
                 }
+
+                RowDataPacket rowDataPk = new RowDataPacket(fieldCount);
+                row[3] = (byte) session.getShardingService().nextPacketId();
+                rowDataPk.read(row);
                 if (session.isPrepared()) {
-                    RowDataPacket rowDataPkg = new RowDataPacket(fieldCount);
-                    row[3] = ++packetId;
-                    rowDataPkg.read(row);
                     BinaryRowDataPacket binRowDataPk = new BinaryRowDataPacket();
-                    binRowDataPk.read(fieldPackets, rowDataPkg);
-                    binRowDataPk.setPacketId(rowDataPkg.getPacketId());
+                    binRowDataPk.read(fieldPackets, rowDataPk);
+                    binRowDataPk.setPacketId(rowDataPk.getPacketId());
                     byteBuffer = binRowDataPk.write(byteBuffer, session.getShardingService(), true);
-                    this.packetId = (byte) session.getPacketId().get();
                 } else {
-                    //todo big packet should be impl
-                   /* if (row.length >= MySQLPacket.MAX_PACKET_SIZE + MySQLPacket.PACKET_HEADER_SIZE) {
-                        byteBuffer = session.getShardingService().writeBigPackageToBuffer(row, byteBuffer, packetId);
-                        this.packetId = (byte) session.getPacketId().get();
-                    } else {
-                        row[3] = ++packetId;
-                        byteBuffer = session.getFrontConnection().writeToBuffer(row, byteBuffer);
-                    }*/
+                    rowDataPk.write(byteBuffer, session.getShardingService(), true);
                 }
             }
         } catch (Exception e) {
@@ -493,7 +484,6 @@ public class MultiNodeQueryHandler extends MultiNodeHandler implements LoadDataR
         }
 
         if (canResponse()) {
-            packetId++;
             if (byteBuffer == null) {
                 handleEndPacket(err.toBytes(), AutoTxOperation.ROLLBACK, false);
             } else if (session.closed()) {
@@ -506,14 +496,14 @@ public class MultiNodeQueryHandler extends MultiNodeHandler implements LoadDataR
     }
 
     private void writeEofResult(byte[] eof, MySQLShardingService source) {
-        eof[3] = packetId;
+        eof[3] = (byte)session.getShardingService().nextPacketId();
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("last packet id:" + packetId);
+            LOGGER.debug("last packet id:" + (byte)session.getShardingService().getPacketId().get());
         }
         byteBuffer = source.writeToBuffer(eof, byteBuffer);
         session.setResponseTime(true);
         doSqlStat();
-        source.write(byteBuffer);
+        source.writeDirectly(byteBuffer);
     }
 
     void doSqlStat() {
@@ -535,7 +525,7 @@ public class MultiNodeQueryHandler extends MultiNodeHandler implements LoadDataR
     private void executeFieldEof(byte[] header, List<byte[]> fields, byte[] eof) {
         MySQLShardingService service = session.getShardingService();
         fieldCount = fields.size();
-        header[3] = ++packetId;
+        header[3] = (byte)session.getShardingService().nextPacketId();
         byteBuffer = service.writeToBuffer(header, byteBuffer);
 
         if (!errorResponse.get()) {
@@ -554,10 +544,10 @@ public class MultiNodeQueryHandler extends MultiNodeHandler implements LoadDataR
                 }
                 fieldPackets.add(fieldPkg);
                 fieldCount = fields.size();
-                fieldPkg.setPacketId(++packetId);
+                fieldPkg.setPacketId(session.getShardingService().nextPacketId());
                 byteBuffer = fieldPkg.write(byteBuffer, service, false);
             }
-            eof[3] = ++packetId;
+            eof[3] = (byte)session.getShardingService().nextPacketId();
             byteBuffer = service.writeToBuffer(eof, byteBuffer);
         }
     }
@@ -621,7 +611,7 @@ public class MultiNodeQueryHandler extends MultiNodeHandler implements LoadDataR
                 service.setTxInterrupt("ROLLBACK");
             }
             session.setResponseTime(isSuccess);
-            boolean multiStatementFlag = session.multiStatementPacket(data, packetId);
+            boolean multiStatementFlag = session.multiStatementPacket(data);
             session.getFrontConnection().write(data);
             session.multiStatementNextSql(multiStatementFlag);
         }

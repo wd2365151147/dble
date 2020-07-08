@@ -7,7 +7,6 @@ package com.actiontech.dble.server.response;
 
 import com.actiontech.dble.config.ErrorCode;
 import com.actiontech.dble.net.mysql.OkPacket;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.parser.ScriptPrepareParse;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 
@@ -34,7 +33,7 @@ public final class SptPrepare {
             List<String> args = new LinkedList();
             ScriptPrepareParse.parseStmt(stmt, args);
             service.getSptPrepare().setPrepare(name, args);
-            service.write(service.writeToBuffer(OkPacket.OK, service.allocate()));
+            service.writeDirectly(service.writeToBuffer(OkPacket.OK, service.allocate()));
         } else {
             service.writeErrMessage(ErrorCode.ER_PARSE_ERROR, "SQL syntax error");
         }

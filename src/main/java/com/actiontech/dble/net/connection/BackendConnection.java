@@ -24,36 +24,22 @@ public class BackendConnection extends PooledConnection {
 
     private long threadId = 0;
 
+    ReadTimeStatusInstance instance;
+
     public BackendConnection(NetworkChannel channel, SocketWR socketWR, ReadTimeStatusInstance instance, ResponseHandler handler) {
         super(channel, socketWR);
+        this.instance = instance;
         DbInstanceConfig config = instance.getConfig();
         this.host = config.getIp();
         this.port = config.getPort();
         this.lastTime = TimeUtil.currentTimeMillis();
         this.setService(new MySQLBackAuthService(this, config.getUser(), null, config.getPassword(), null, handler));
 
-        /*this.autocommitSynced = instance.isAutocommitSynced();
-        boolean sysAutocommit = SystemConfig.getInstance().getAutocommit() == 1;
-        this.autocommit = sysAutocommit == autocommitSynced; // T + T-> T, T + F-> F, F +T ->F, F + F->T
-        this.fromSlaveDB = fromSlaveDB;
-        this.isolationSynced = isolationSynced;
-        if (isolationSynced) {
-            this.txIsolation = SystemConfig.getInstance().getTxIsolation();
-        } else {
-            *//* if the txIsolation in bootstrap.cnf is different from the isolation level in MySQL node,
-             * it need to sync the status firstly for new idle connection*//*
-            this.txIsolation = -1;
-        }
-        this.complexQuery = false;
-        this.usrVariables = new LinkedHashMap<>();
-        this.sysVariables = new LinkedHashMap<>();
-        this.user = config.getUser();
-        this.password = config.getPassword();*/
-
     }
 
     public BackendConnection(NetworkChannel channel, SocketWR socketWR, ReadTimeStatusInstance instance, PooledConnectionListener listener, String schema) {
         super(channel, socketWR);
+        this.instance = instance;
         DbInstanceConfig config = instance.getConfig();
         this.host = config.getIp();
         this.port = config.getPort();
@@ -80,9 +66,6 @@ public class BackendConnection extends PooledConnection {
 
     }
 
-    public void onConnectFailed(Throwable e) {
-
-    }
 
     @Override
     public void startFlowControl(BackendConnection bcon) {
@@ -150,8 +133,8 @@ public class BackendConnection extends PooledConnection {
         try {
             this.socketWR.doNextWriteCheck();
         } catch (Exception e) {
-            LOGGER.info("write err:", e);
-            this.close("write err:" + e);
+            LOGGER.info("writeDirectly err:", e);
+            this.close("writeDirectly err:" + e);
         }
     }
 
@@ -166,5 +149,9 @@ public class BackendConnection extends PooledConnection {
 
     public MySQLResponseService getBackendService() {
         return (MySQLResponseService) getService();
+    }
+
+    public ReadTimeStatusInstance getInstance() {
+        return instance;
     }
 }

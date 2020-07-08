@@ -121,13 +121,13 @@ public class SetTestJob implements ResponseHandler, Runnable {
             doFinished(false);
             if (!((SetCallBack) ((OneRawSQLQueryResultHandler) jobHandler).getCallback()).isBackToOtherThread()) {
                 boolean multiStatementFlag = responseService.getSession().getIsMultiStatement().get();
-                responseService.write(responseService.writeToBuffer(responseService.getSession().getOkByteArray(), responseService.allocate()));
+                responseService.writeDirectly(responseService.writeToBuffer(responseService.getSession().getOkByteArray(), responseService.allocate()));
                 responseService.getSession().multiStatementNextSql(multiStatementFlag);
             }
             ResetConnHandler handler = new ResetConnHandler();
             responseService.setResponseHandler(handler);
             responseService.setComplexQuery(true);
-            responseService.write(responseService.writeToBuffer(ResetConnectionPacket.RESET, responseService.allocate()));
+            responseService.writeDirectly(responseService.writeToBuffer(ResetConnectionPacket.RESET, responseService.allocate()));
         }
     }
 

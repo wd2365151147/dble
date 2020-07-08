@@ -13,7 +13,6 @@ import com.actiontech.dble.config.Isolations;
 import com.actiontech.dble.config.model.SystemConfig;
 import com.actiontech.dble.route.parser.util.Pair;
 import com.actiontech.dble.route.parser.util.ParseUtil;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.sqlengine.OneRawSQLQueryResultHandler;
 import com.actiontech.dble.sqlengine.SetTestJob;
@@ -82,7 +81,7 @@ public final class SetHandler {
                 shardingService.setInnerSetTask(innerSetTask);
                 if (!shardingService.executeInnerSetTask()) {
                     boolean multiStatementFlag = shardingService.getSession2().getIsMultiStatement().get();
-                    shardingService.write(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
+                    shardingService.writeDirectly(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
                     shardingService.getSession2().multiStatementNextSql(multiStatementFlag);
                 }
             }
@@ -163,7 +162,7 @@ public final class SetHandler {
             } else {
                 shardingService.setNames(charsetInfo.charset, charsetInfo.collation);
                 boolean multiStatementFlag = shardingService.getSession2().getIsMultiStatement().get();
-                shardingService.write(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
+                shardingService.writeDirectly(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
                 shardingService.getSession2().multiStatementNextSql(multiStatementFlag);
                 return true;
             }
@@ -187,7 +186,7 @@ public final class SetHandler {
             } else {
                 shardingService.setCharacterSet(charset);
                 boolean multiStatementFlag = shardingService.getSession2().getIsMultiStatement().get();
-                shardingService.write(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
+                shardingService.writeDirectly(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
                 shardingService.getSession2().multiStatementNextSql(multiStatementFlag);
                 return true;
             }
@@ -462,12 +461,12 @@ public final class SetHandler {
         } else if (switchStatus) {
             shardingService.setSessionReadOnly(true);
             boolean multiStatementFlag = shardingService.getSession2().getIsMultiStatement().get();
-            shardingService.write(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
+            shardingService.writeDirectly(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
             shardingService.getSession2().multiStatementNextSql(multiStatementFlag);
         } else {
             shardingService.setSessionReadOnly(false);
             boolean multiStatementFlag = shardingService.getSession2().getIsMultiStatement().get();
-            shardingService.write(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
+            shardingService.writeDirectly(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
             shardingService.getSession2().multiStatementNextSql(multiStatementFlag);
         }
         return true;
@@ -482,7 +481,7 @@ public final class SetHandler {
         }
         service.setTxIsolation(txIsolation);
         boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
-        service.write(service.writeToBuffer(service.getSession2().getOkByteArray(), service.allocate()));
+        service.writeDirectly(service.writeToBuffer(service.getSession2().getOkByteArray(), service.allocate()));
         service.getSession2().multiStatementNextSql(multiStatementFlag);
         return true;
     }
@@ -507,7 +506,7 @@ public final class SetHandler {
         if (checkCollation(collation)) {
             service.setCollationConnection(collation);
             boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
-            service.write(service.writeToBuffer(service.getSession2().getOkByteArray(), service.allocate()));
+            service.writeDirectly(service.writeToBuffer(service.getSession2().getOkByteArray(), service.allocate()));
             service.getSession2().multiStatementNextSql(multiStatementFlag);
             return true;
         } else {
@@ -521,7 +520,7 @@ public final class SetHandler {
         if (charsetResult.equalsIgnoreCase("NULL") || checkCharset(charsetResult)) {
             shardingService.setCharacterResults(charsetResult);
             boolean multiStatementFlag = shardingService.getSession2().getIsMultiStatement().get();
-            shardingService.write(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
+            shardingService.writeDirectly(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
             shardingService.getSession2().multiStatementNextSql(multiStatementFlag);
             return true;
         } else {
@@ -540,7 +539,7 @@ public final class SetHandler {
         if (collationName != null) {
             shardingService.setCharacterConnection(collationName);
             boolean multiStatementFlag = shardingService.getSession2().getIsMultiStatement().get();
-            shardingService.write(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
+            shardingService.writeDirectly(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
             shardingService.getSession2().multiStatementNextSql(multiStatementFlag);
             return true;
         } else {
@@ -562,7 +561,7 @@ public final class SetHandler {
             } else {
                 service.setCharacterClient(charsetClient);
                 boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
-                service.write(service.writeToBuffer(service.getSession2().getOkByteArray(), service.allocate()));
+                service.writeDirectly(service.writeToBuffer(service.getSession2().getOkByteArray(), service.allocate()));
                 service.getSession2().multiStatementNextSql(multiStatementFlag);
                 return true;
             }
@@ -726,7 +725,7 @@ public final class SetHandler {
                 service.setSessionReadOnly(false);
             }
             boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
-            service.write(service.writeToBuffer(service.getSession2().getOkByteArray(), service.allocate()));
+            service.writeDirectly(service.writeToBuffer(service.getSession2().getOkByteArray(), service.allocate()));
             service.getSession2().multiStatementNextSql(multiStatementFlag);
             return true;
         } else {
@@ -750,7 +749,7 @@ public final class SetHandler {
             }
             service.setTxIsolation(txIsolation);
             boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
-            service.write(service.writeToBuffer(service.getSession2().getOkByteArray(), service.allocate()));
+            service.writeDirectly(service.writeToBuffer(service.getSession2().getOkByteArray(), service.allocate()));
             service.getSession2().multiStatementNextSql(multiStatementFlag);
             return true;
         }

@@ -29,12 +29,13 @@ import com.actiontech.dble.plan.common.item.Item;
 import com.actiontech.dble.plan.visitor.MySQLItemVisitor;
 import com.actiontech.dble.route.RouteResultset;
 import com.actiontech.dble.route.util.RouterUtil;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.parser.ServerParse;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.singleton.ProxyMeta;
 import com.actiontech.dble.util.StringUtil;
 import com.google.common.base.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -48,6 +49,8 @@ import java.util.regex.Pattern;
 public final class ShowTables {
     private ShowTables() {
     }
+
+    protected static final Logger LOGGER = LoggerFactory.getLogger(MySQLShardingService.class);
 
     public static void response(MySQLShardingService shardingService, String stmt) {
         ShowTablesStmtInfo info;
@@ -129,9 +132,9 @@ public final class ShowTables {
                 info.getWhereExpr().accept(mev);
                 List<Field> sourceFields = HandlerTool.createFields(fieldPackets);
                 Item whereItem = HandlerTool.createItem(mev.getItem(), sourceFields, 0, false, DMLResponseHandler.HandlerType.WHERE);
-                bufInf = writeFullTablesRow(bufInf.getBuffer(), shardingService, tableMap, bufInf.getPacketId(), whereItem, sourceFields);
+                bufInf = writeFullTablesRow(bufInf.getBuffer(), shardingService, tableMap, whereItem, sourceFields);
             } else {
-                bufInf = writeFullTablesRow(bufInf.getBuffer(), shardingService, tableMap, bufInf.getPacketId(), null, null);
+                bufInf = writeFullTablesRow(bufInf.getBuffer(), shardingService, tableMap, null, null);
             }
         } else {
             bufInf = writeTablesHeaderAndRows(buffer, shardingService, tableMap, schemaColumn);
@@ -145,31 +148,29 @@ public final class ShowTables {
         ResultSetHeaderPacket header = PacketUtil.getHeader(fieldCount);
         FieldPacket[] fields = new FieldPacket[fieldCount];
         int i = 0;
-        byte packetId = 0;
-        header.setPacketId(++packetId);
+        header.setPacketId(shardingService.nextPacketId());
         fields[i] = PacketUtil.getField("Tables_in_" + cSchema, Fields.FIELD_TYPE_VAR_STRING);
-        fields[i].setPacketId(++packetId);
+        fields[i].setPacketId(shardingService.nextPacketId());
         fieldPackets.add(fields[i]);
         fields[i + 1] = PacketUtil.getField("Table_type", Fields.FIELD_TYPE_VAR_STRING);
-        fields[i + 1].setPacketId(++packetId);
+        fields[i + 1].setPacketId(shardingService.nextPacketId());
         fieldPackets.add(fields[i + 1]);
 
         EOFPacket eof = new EOFPacket();
-        eof.setPacketId(++packetId);
-        // write header
+        eof.setPacketId(shardingService.nextPacketId());
+        // writeDirectly header
         buffer = header.write(buffer, shardingService, true);
-        // write fields
+        // writeDirectly fields
         for (FieldPacket field : fields) {
             buffer = field.write(buffer, shardingService, true);
         }
         eof.write(buffer, shardingService, true);
         PackageBufINf packBuffInfo = new PackageBufINf();
         packBuffInfo.setBuffer(buffer);
-        packBuffInfo.setPacketId(packetId);
         return packBuffInfo;
     }
 
-    public static PackageBufINf writeFullTablesRow(ByteBuffer buffer, MySQLShardingService shardingService, Map<String, String> tableMap, byte packetId, Item whereItem, List<Field> sourceFields) {
+    public static PackageBufINf writeFullTablesRow(ByteBuffer buffer, MySQLShardingService shardingService, Map<String, String> tableMap, Item whereItem, List<Field> sourceFields) {
         for (Map.Entry<String, String> entry : tableMap.entrySet()) {
             RowDataPacket row = new RowDataPacket(2);
             String name = entry.getKey();
@@ -182,17 +183,16 @@ public final class ShowTables {
                 HandlerTool.initFields(sourceFields, row.fieldValues);
                 /* filter by where condition */
                 if (whereItem.valBool()) {
-                    row.setPacketId(++packetId);
+                    row.setPacketId(shardingService.nextPacketId());
                     buffer = row.write(buffer, shardingService, true);
                 }
             } else {
-                row.setPacketId(++packetId);
+                row.setPacketId(shardingService.nextPacketId());
                 buffer = row.write(buffer, shardingService, true);
             }
         }
         PackageBufINf packBuffInfo = new PackageBufINf();
         packBuffInfo.setBuffer(buffer);
-        packBuffInfo.setPacketId(packetId);
         return packBuffInfo;
     }
 
@@ -201,20 +201,19 @@ public final class ShowTables {
         ResultSetHeaderPacket header = PacketUtil.getHeader(fieldCount);
         FieldPacket[] fields = new FieldPacket[fieldCount];
         int i = 0;
-        byte packetId = 0;
-        header.setPacketId(++packetId);
+        header.setPacketId(shardingService.nextPacketId());
         fields[i] = PacketUtil.getField("Tables_in_" + cSchema, Fields.FIELD_TYPE_VAR_STRING);
-        fields[i].setPacketId(++packetId);
+        fields[i].setPacketId(shardingService.nextPacketId());
 
         EOFPacket eof = new EOFPacket();
-        eof.setPacketId(++packetId);
-        // write header
+        eof.setPacketId(shardingService.nextPacketId());
+        // writeDirectly header
         buffer = header.write(buffer, shardingService, true);
-        // write fields
+        // writeDirectly fields
         for (FieldPacket field : fields) {
             buffer = field.write(buffer, shardingService, true);
         }
-        // write eof
+        // writeDirectly eof
         eof.write(buffer, shardingService, true);
         for (String name : tableMap.keySet()) {
             RowDataPacket row = new RowDataPacket(fieldCount);
@@ -222,23 +221,23 @@ public final class ShowTables {
                 name = name.toLowerCase();
             }
             row.add(StringUtil.encode(name, shardingService.getCharset().getResults()));
-            row.setPacketId(++packetId);
+            row.setPacketId(shardingService.nextPacketId());
             buffer = row.write(buffer, shardingService, true);
+            LOGGER.info("name ================================== " + name);
         }
         PackageBufINf packBuffInfo = new PackageBufINf();
         packBuffInfo.setBuffer(buffer);
-        packBuffInfo.setPacketId(packetId);
         return packBuffInfo;
     }
 
     private static void writeRowEof(ByteBuffer buffer, MySQLShardingService shardingService, byte packetId) {
-        // write last eof
+        // writeDirectly last eof
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
         buffer = lastEof.write(buffer, shardingService, true);
 
-        // post write
-        shardingService.write(buffer);
+        // post writeDirectly
+        shardingService.writeDirectly(buffer);
     }
 
     public static Map<String, String> getTableSet(String cSchema, ShowTablesStmtInfo info) {

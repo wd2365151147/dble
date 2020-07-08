@@ -12,7 +12,6 @@ import com.actiontech.dble.net.mysql.EOFPacket;
 import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.ResultSetHeaderPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.google.common.base.Splitter;
 import org.slf4j.Logger;
@@ -53,10 +52,10 @@ public final class SelectVariables {
 
         ByteBuffer buffer = service.allocate();
 
-        // write header
+        // writeDirectly header
         buffer = header.write(buffer, service, true);
 
-        // write fields
+        // writeDirectly fields
         for (FieldPacket field : fields) {
             buffer = field.write(buffer, service, true);
         }
@@ -64,10 +63,10 @@ public final class SelectVariables {
 
         EOFPacket eof = new EOFPacket();
         eof.setPacketId(++packetId);
-        // write eof
+        // writeDirectly eof
         buffer = eof.write(buffer, service, true);
 
-        // write rows
+        // writeDirectly rows
         //byte packetId = eof.packetId;
 
         RowDataPacket row = new RowDataPacket(fieldCount);
@@ -93,14 +92,14 @@ public final class SelectVariables {
         buffer = row.write(buffer, service, true);
 
 
-        // write lastEof
+        // writeDirectly lastEof
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
         service.getSession2().multiStatementPacket(lastEof, packetId);
         buffer = lastEof.write(buffer, service, true);
         boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
-        // write buffer
-        service.write(buffer);
+        // writeDirectly buffer
+        service.writeDirectly(buffer);
         service.getSession2().multiStatementNextSql(multiStatementFlag);
     }
 

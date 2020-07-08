@@ -57,6 +57,7 @@ public abstract class MySQLBasedService extends AbstractService {
             byte[] data = executeTask.getOrgData();
             this.setPacketId(data[3]);
             this.handleInnerData(data);
+            currentTask = null;
         }
     }
 

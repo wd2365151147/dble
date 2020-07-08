@@ -175,7 +175,7 @@ public final class XAStateLog {
             try {
                 waitSet.remove(Thread.currentThread().getId());
                 batchNum.decrementAndGet();
-                // the follower's status has copied and ready to write
+                // the follower's status has copied and ready to writeDirectly
                 waitWriting.await();
                 boolean result = mapResult.get(Thread.currentThread().getId());
                 mapResult.remove(Thread.currentThread().getId());

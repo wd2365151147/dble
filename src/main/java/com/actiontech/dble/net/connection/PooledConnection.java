@@ -14,7 +14,8 @@ public abstract class PooledConnection extends AbstractConnection {
 
     protected volatile long lastTime;
     private volatile long poolDestroyedTime;
-    private volatile String schema;
+    private volatile String schema = null;
+    private volatile String oldSchema;
     private volatile ConnectionPool poolRelated;
 
     private final AtomicBoolean logResponse = new AtomicBoolean(false);
@@ -110,4 +111,11 @@ public abstract class PooledConnection extends AbstractConnection {
         return poolRelated.isFromSlave();
     }
 
+    public String getOldSchema() {
+        return oldSchema;
+    }
+
+    public void setOldSchema(String oldSchema) {
+        this.oldSchema = oldSchema;
+    }
 }

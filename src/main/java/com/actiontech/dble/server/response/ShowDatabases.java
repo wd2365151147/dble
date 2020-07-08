@@ -16,7 +16,6 @@ import com.actiontech.dble.net.mysql.EOFPacket;
 import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.ResultSetHeaderPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.StringUtil;
 
@@ -48,19 +47,19 @@ public final class ShowDatabases {
         EOF.setPacketId(++packetId);
 
         ByteBuffer buffer = shardingService.allocate();
-        // write header
+        // writeDirectly header
         buffer = HEADER.write(buffer, shardingService, true);
 
 
-        // write fields
+        // writeDirectly fields
         for (FieldPacket field : FIELDS) {
             buffer = field.write(buffer, shardingService, true);
         }
 
-        // write eof
+        // writeDirectly eof
         buffer = EOF.write(buffer, shardingService, true);
 
-        // write rows
+        // writeDirectly rows
         ServerConfig conf = DbleServer.getInstance().getConfig();
         Map<UserName, UserConfig> users = conf.getUsers();
         UserConfig user = users == null ? null : users.get(shardingService.getUser());
@@ -81,13 +80,13 @@ public final class ShowDatabases {
             }
         }
 
-        // write last eof
+        // writeDirectly last eof
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
         shardingService.getSession2().multiStatementPacket(lastEof, packetId);
         buffer = lastEof.write(buffer, shardingService, true);
         boolean multiStatementFlag = shardingService.getSession2().getIsMultiStatement().get();
-        shardingService.write(buffer);
+        shardingService.writeDirectly(buffer);
         shardingService.getSession2().multiStatementNextSql(multiStatementFlag);
     }
 

@@ -52,7 +52,7 @@ public final class SelectCurrentUser implements InnerFuncResponse {
             service.getSession2().multiStatementPacket(lastEof, packetId);
             buffer = lastEof.write(buffer, service, true);
             boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
-            service.write(buffer);
+            service.writeDirectly(buffer);
             service.getSession2().multiStatementNextSql(multiStatementFlag);
         } else {
             ERROR.write(service.getConnection());

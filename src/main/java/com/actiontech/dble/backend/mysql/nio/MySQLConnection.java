@@ -310,7 +310,7 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
         packet.setClientFlags(getClientFlagSha());
         packet.setAuthPlugin(authPluginName);
         packet.setDatabase(schema);
-        packet.writeWithKey(this);*/
+        packet.bufferWrite(this);*/
     }
 
     public boolean isAutocommit() {
@@ -340,7 +340,7 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
         if (size >= MySQLPacket.MAX_PACKET_SIZE) {
             packet.writeBigPackage(this, size);
         } else {
-            packet.write(this);
+            packet.writeDirectly(this);
         }*/
     }
 
@@ -640,7 +640,7 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
     }
 
     /**
-     * Only write quit packet to backend ,when the NIOSocketWR find the QuitPacket
+     * Only writeDirectly quit packet to backend ,when the NIOSocketWR find the QuitPacket
      * closeInner() would be called
      *
      * @param reason
@@ -763,7 +763,7 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
     }
 
     public void commit() {
-        //COMMIT.write(this);
+        //COMMIT.writeDirectly(this);
     }
 
     public void execCmd(String cmd) {
@@ -771,7 +771,7 @@ public class MySQLConnection extends AbstractConnection implements BackendConnec
     }
 
     public void rollback() {
-        //ROLLBACK.write(this);
+        //ROLLBACK.writeDirectly(this);
     }
 
     public void release() {

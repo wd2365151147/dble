@@ -8,6 +8,7 @@ package com.actiontech.dble.net.mysql;
 import com.actiontech.dble.backend.mysql.BufferUtil;
 import com.actiontech.dble.backend.mysql.MySQLMessage;
 import com.actiontech.dble.net.FrontendConnection;
+import com.actiontech.dble.net.connection.AbstractConnection;
 import com.actiontech.dble.net.service.AbstractService;
 import com.actiontech.dble.singleton.BufferPoolManager;
 
@@ -59,6 +60,11 @@ public class EOFPacket extends MySQLPacket {
         BufferUtil.writeUB2(buffer, warningCount);
         BufferUtil.writeUB2(buffer, status);
         return buffer;
+    }
+
+    @Override
+    public void bufferWrite(AbstractConnection connection) {
+
     }
 
     @Override

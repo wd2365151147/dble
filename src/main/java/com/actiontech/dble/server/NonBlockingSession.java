@@ -107,7 +107,6 @@ public class NonBlockingSession implements Session {
 
     private AtomicBoolean isMultiStatement = new AtomicBoolean(false);
     private volatile String remingSql = null;
-    private AtomicInteger packetId = new AtomicInteger(0);
     private volatile boolean traceEnable = false;
     private volatile TraceResult traceResult = new TraceResult();
     private volatile RouteResultset complexRrs = null;
@@ -957,7 +956,7 @@ public class NonBlockingSession implements Session {
             } else if (packet instanceof EOFPacket) {
                 ((EOFPacket) packet).markMoreResultsExists();
             }
-            this.packetId.set(packetNum);
+            this.getPacketId().set(packetNum);
             return true;
         }
         return false;
@@ -971,7 +970,29 @@ public class NonBlockingSession implements Session {
             //if there is another statement is need to be executed ,start another round
             eof[7] = (byte) (eof[7] | StatusFlags.SERVER_MORE_RESULTS_EXISTS);
 
-            this.packetId.set(packetNum);
+            this.getPacketId().set(packetNum);
+            return true;
+        }
+        return false;
+    }
+
+
+    public boolean multiStatementPacket(byte[] eof) {
+        if (this.getIsMultiStatement().get()) {
+            //if there is another statement is need to be executed ,start another round
+            eof[7] = (byte) (eof[7] | StatusFlags.SERVER_MORE_RESULTS_EXISTS);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean multiStatementPacket(MySQLPacket packet) {
+        if (this.isMultiStatement.get()) {
+            if (packet instanceof OkPacket) {
+                ((OkPacket) packet).markMoreResultsExists();
+            } else if (packet instanceof EOFPacket) {
+                ((EOFPacket) packet).markMoreResultsExists();
+            }
             return true;
         }
         return false;
@@ -1065,7 +1086,7 @@ public class NonBlockingSession implements Session {
     }
 
     public AtomicInteger getPacketId() {
-        return packetId;
+        return service.getPacketId();
     }
 
 

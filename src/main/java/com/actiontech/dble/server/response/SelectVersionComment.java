@@ -8,13 +8,11 @@ package com.actiontech.dble.server.response;
 import com.actiontech.dble.backend.mysql.PacketUtil;
 import com.actiontech.dble.config.Fields;
 import com.actiontech.dble.config.Versions;
-import com.actiontech.dble.net.FrontendConnection;
 import com.actiontech.dble.net.mysql.EOFPacket;
 import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.ResultSetHeaderPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
 import com.actiontech.dble.net.service.AbstractService;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 
 import java.nio.ByteBuffer;
@@ -41,25 +39,25 @@ public final class SelectVersionComment {
 
         ByteBuffer buffer = service.allocate();
 
-        // write header
+        // writeDirectly header
         buffer = HEADER.write(buffer, service, true);
 
-        // write fields
+        // writeDirectly fields
         for (FieldPacket field : FIELDS) {
             buffer = field.write(buffer, service, true);
         }
 
-        // write eof
+        // writeDirectly eof
         buffer = EOF.write(buffer, service, true);
 
-        // write rows
+        // writeDirectly rows
 
         RowDataPacket row = new RowDataPacket(FIELD_COUNT);
         row.add(Versions.VERSION_COMMENT);
         row.setPacketId(++packetId);
         buffer = row.write(buffer, service, true);
 
-        // write last eof
+        // writeDirectly last eof
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
         boolean multiStatementFlag = false;
@@ -69,8 +67,8 @@ public final class SelectVersionComment {
         }
         buffer = lastEof.write(buffer, service, true);
 
-        // post write
-        service.write(buffer);
+        // post writeDirectly
+        service.writeDirectly(buffer);
         if (service instanceof MySQLShardingService) {
             ((MySQLShardingService) service).getSession2().multiStatementNextSql(multiStatementFlag);
         }

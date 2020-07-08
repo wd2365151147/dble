@@ -237,7 +237,7 @@ public class MySQLInstance extends PhysicalDbInstance {
             authPacket.setPassword(passwordSented);
             authPacket.setDatabase(null);
             authPacket.setAuthPlugin(authPluginName);
-            authPacket.writeWithKey(out);
+            authPacket.bufferWrite(out);
             out.flush();
         } catch (Exception e) {
             LOGGER.warn(e.getMessage());

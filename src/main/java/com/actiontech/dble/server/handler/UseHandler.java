@@ -8,7 +8,6 @@ package com.actiontech.dble.server.handler;
 import com.actiontech.dble.DbleServer;
 import com.actiontech.dble.config.ErrorCode;
 import com.actiontech.dble.config.model.user.ShardingUserConfig;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.StringUtil;
 
@@ -53,7 +52,7 @@ public final class UseHandler {
         ByteBuffer buffer = service.allocate();
         boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
         service.getSession2().setRowCount(0);
-        service.write(service.writeToBuffer(service.getSession2().getOkByteArray(), buffer));
+        service.writeDirectly(service.writeToBuffer(service.getSession2().getOkByteArray(), buffer));
         service.getSession2().multiStatementNextSql(multiStatementFlag);
     }
 

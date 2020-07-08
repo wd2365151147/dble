@@ -105,7 +105,7 @@ public class CachingSHA2Pwd extends MySQLAuthPlugin {
                 BinaryPacket binaryPacket = new BinaryPacket();
                 binaryPacket.setData(new byte[]{2});
                 binaryPacket.setPacketId(++data[3]);
-                binaryPacket.write(connection);
+                binaryPacket.bufferWrite(connection);
                 return plugin_same_with_default;
             case OkPacket.FIELD_COUNT:
                 // get ok from mysql,login success

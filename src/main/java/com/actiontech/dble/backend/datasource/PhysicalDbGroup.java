@@ -337,7 +337,7 @@ public class PhysicalDbGroup {
 
             PhysicalDbInstance newWriteHost = allSourceMap.get(writeHost);
             writeDbInstance.setReadInstance(true);
-            //close all old master connection ,so that new write query would not put into the old writeHost
+            //close all old master connection ,so that new writeDirectly query would not put into the old writeHost
             writeDbInstance.closeAllConnection("ha command switch dbInstance");
             if (!newWriteHost.isDisabled()) {
                 GetAndSyncDbInstanceKeyVariables task = new GetAndSyncDbInstanceKeyVariables(newWriteHost, true);

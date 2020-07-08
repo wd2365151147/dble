@@ -8,7 +8,6 @@ package com.actiontech.dble.backend.mysql.nio.handler;
 import com.actiontech.dble.DbleServer;
 import com.actiontech.dble.backend.datasource.ShardingNode;
 import com.actiontech.dble.backend.mysql.LoadDataUtil;
-import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
 import com.actiontech.dble.config.ErrorCode;
 import com.actiontech.dble.config.FlowControllerConfig;
 import com.actiontech.dble.config.ServerConfig;
@@ -21,7 +20,6 @@ import com.actiontech.dble.net.service.AbstractService;
 import com.actiontech.dble.route.RouteResultset;
 import com.actiontech.dble.route.RouteResultsetNode;
 import com.actiontech.dble.server.NonBlockingSession;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLResponseService;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.singleton.WriteQueueFlowController;
@@ -49,12 +47,11 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
     protected final NonBlockingSession session;
 
     // only one thread access at one time no need lock
-    protected volatile byte packetId;
     protected volatile ByteBuffer buffer;
     protected long netOutBytes;
     private long resultSize;
     long selectRows;
-    private int fieldCount;
+    protected int fieldCount;
     private List<FieldPacket> fieldPackets = new ArrayList<>();
     private volatile boolean connClosed = false;
     protected AtomicBoolean writeToClient = new AtomicBoolean(false);
@@ -75,11 +72,12 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
     @Override
     public void execute() throws Exception {
         connClosed = false;
-        if (rrs.isLoadData()) {
+        //todo check weither this would change
+        /*if (rrs.isLoadData()) {
             packetId = session.getShardingService().getLoadDataInfileHandler().getLastPackId();
         } else {
             packetId = (byte) session.getPacketId().get();
-        }
+        }*/
         RouteResultsetNode finalNode = null;
         if (session.getTargetCount() > 0) {
             BackendConnection conn = session.getTarget(node);
@@ -138,7 +136,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
     public void connectionError(Throwable e, Object attachment) {
         RouteResultsetNode rrn = (RouteResultsetNode) attachment;
         ErrorPacket errPacket = new ErrorPacket();
-        errPacket.setPacketId(++packetId);
+        errPacket.setPacketId(session.getShardingService().nextPacketId());
         errPacket.setErrNo(ErrorCode.ER_DB_INSTANCE_ABORTING_CONNECTION);
         String errMsg = "can't connect to shardingNode[" + rrn.getName() + "], due to " + e.getMessage();
         errPacket.setMessage(StringUtil.encode(errMsg, session.getShardingService().getCharset().getResults()));
@@ -150,7 +148,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
     public void errorResponse(byte[] data, AbstractService service) {
         ErrorPacket err = new ErrorPacket();
         err.read(data);
-        err.setPacketId(++packetId);
+        err.setPacketId(session.getShardingService().nextPacketId());
         backConnectionErr(err, (MySQLResponseService) service, ((MySQLResponseService) service).syncAndExecute());
         session.resetMultiStatementStatus();
     }
@@ -204,7 +202,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
                     /* SELECT 9223372036854775807 + 1;    response: field_count, field, eof, err */
                     buffer = shardingService.writeToBuffer(errPkg.toBytes(), buffer);
                     session.setResponseTime(false);
-                    shardingService.write(buffer);
+                    shardingService.writeDirectly(buffer);
                 } else {
                     errPkg.write(shardingService.getConnection());
                 }
@@ -219,7 +217,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
      * insert/update/delete
      * <p>
      * okResponse():
-     * read data, make an OKPacket, write to writeQueue in FrontendConnection by ok.write(source)
+     * read data, make an OKPacket, writeDirectly to writeQueue in FrontendConnection by ok.writeDirectly(source)
      */
     @Override
     public void okResponse(byte[] data, AbstractService service) {
@@ -237,7 +235,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
                 shardingService.getLoadDataInfileHandler().clear();
 
             } else {
-                ok.setPacketId(++packetId); // OK_PACKET
+                ok.setPacketId(shardingService.nextPacketId()); // OK_PACKET
             }
             session.setRowCount(ok.getAffectedRows());
             ok.setMessage(null);
@@ -246,7 +244,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
             session.setBackendResponseEndTime((MySQLResponseService) service);
             session.releaseConnectionIfSafe((MySQLResponseService) service, false);
             session.setResponseTime(true);
-            session.multiStatementPacket(ok, packetId);
+            session.multiStatementPacket(ok);
             boolean multiStatementFlag = session.getIsMultiStatement().get();
             doSqlStat();
 
@@ -260,7 +258,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
     /**
      * select
      * <p>
-     * write EOF to Queue
+     * writeDirectly EOF to Queue
      */
     @Override
     public void rowEofResponse(byte[] eof, boolean isLeft, AbstractService service) {
@@ -271,8 +269,9 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
             session.releaseConnectionIfSafe((MySQLResponseService) service, false);
         }
 
-        eof[3] = ++packetId;
-        session.multiStatementPacket(eof, packetId);
+        eof[3] = (byte) session.getShardingService().nextPacketId();
+        session.multiStatementPacket(eof);
+
         MySQLShardingService shardingService = session.getShardingService();
         session.setResponseTime(true);
         final boolean multiStatementFlag = session.getIsMultiStatement().get();
@@ -281,7 +280,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
         try {
             if (writeToClient.compareAndSet(false, true)) {
                 buffer = shardingService.writeToBuffer(eof, buffer);
-                shardingService.write(buffer);
+                shardingService.writeDirectly(buffer);
             }
         } finally {
             lock.unlock();
@@ -316,7 +315,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
         this.netOutBytes += eof.length;
         this.resultSize += eof.length;
 
-        header[3] = ++packetId;
+        header[3] = (byte)session.getShardingService().nextPacketId();
 
         MySQLShardingService shardingService = session.getShardingService();
         lock.lock();
@@ -326,7 +325,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
                 buffer = shardingService.writeToBuffer(header, buffer);
                 for (int i = 0, len = fields.size(); i < len; ++i) {
                     byte[] field = fields.get(i);
-                    field[3] = ++packetId;
+                    field[3] = (byte)session.getShardingService().nextPacketId();
 
                     // save field
                     FieldPacket fieldPk = new FieldPacket();
@@ -347,7 +346,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
 
                 fieldCount = fieldPackets.size();
 
-                eof[3] = ++packetId;
+                eof[3] = (byte)session.getShardingService().nextPacketId();
                 buffer = shardingService.writeToBuffer(eof, buffer);
             }
         } finally {
@@ -367,25 +366,19 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
                 FlowControllerConfig fconfig = WriteQueueFlowController.getFlowCotrollerConfig();
                 if (fconfig.isEnableFlowControl() &&
                         session.getFrontConnection().getWriteQueue().size() > fconfig.getStart()) {
-                    session.getFrontConnection().startFlowControl(((MySQLResponseService)service).getConnection());
+                    session.getFrontConnection().startFlowControl(((MySQLResponseService) service).getConnection());
                 }
+
+                RowDataPacket rowDataPk = new RowDataPacket(fieldCount);
+                row[3] = (byte) session.getShardingService().nextPacketId();
+                rowDataPk.read(row);
                 if (session.isPrepared()) {
-                    RowDataPacket rowDataPk = new RowDataPacket(fieldCount);
-                    row[3] = ++packetId;
-                    rowDataPk.read(row);
                     BinaryRowDataPacket binRowDataPk = new BinaryRowDataPacket();
                     binRowDataPk.read(fieldPackets, rowDataPk);
                     binRowDataPk.setPacketId(rowDataPk.getPacketId());
                     buffer = binRowDataPk.write(buffer, session.getShardingService(), true);
-                    this.packetId = (byte) session.getPacketId().get();
                 } else {
-                   /* if (row.length >= MySQLPacket.MAX_PACKET_SIZE + MySQLPacket.PACKET_HEADER_SIZE) {
-                        buffer = session.getFrontConnection().writeBigPackageToBuffer(row, buffer, packetId);
-                        this.packetId = (byte) session.getPacketId().get();
-                    } else {
-                        row[3] = ++packetId;
-                        buffer = session.getFrontConnection().writeToBuffer(row, buffer);
-                    }*/
+                    rowDataPk.write(buffer, session.getShardingService(), true);
                 }
             }
         } finally {
@@ -404,7 +397,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
         reason = "Connection {dbInstance[" + service.getConnection().getHost() + ":" + service.getConnection().getPort() + "],Schema[" + ((MySQLResponseService) service).getSchema() + "],threadID[" +
                 ((MySQLResponseService) service).getConnection().getThreadId() + "]} was closed ,reason is [" + reason + "]";
         ErrorPacket err = new ErrorPacket();
-        err.setPacketId(++packetId);
+        err.setPacketId((byte)session.getShardingService().nextPacketId());
         err.setErrNo(ErrorCode.ER_ERROR_ON_CLOSE);
         err.setMessage(StringUtil.encode(reason, session.getShardingService().getCharset().getResults()));
         this.backConnectionErr(err, (MySQLResponseService) service, true);
@@ -417,7 +410,7 @@ public class SingleNodeHandler implements ResponseHandler, LoadDataResponseHandl
 
     @Override
     public String toString() {
-        return "SingleNodeHandler [node=" + node + ", packetId=" + packetId + "]";
+        return "SingleNodeHandler [node=" + node + ", packetId=" + (byte)session.getShardingService().nextPacketId() + "]";
     }
 
 }

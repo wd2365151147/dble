@@ -47,7 +47,7 @@ public class UnLockTablesHandler extends MultiNodeHandler implements ResponseHan
         if (lockedCons.size() == 0) {
             LOGGER.info("find no locked backend connection!" + session.getFrontConnection());
             OkPacket ok = new OkPacket();
-            ok.setPacketId(++packetId);
+            ok.setPacketId(session.getShardingService().nextPacketId());
             ok.setPacketLength(7); // the size of unlock table's response OK packet is 7
             ok.setServerStatus(session.getShardingService().isAutocommit() ? 2 : 1);
             ok.write(session.getFrontConnection());
@@ -117,12 +117,12 @@ public class UnLockTablesHandler extends MultiNodeHandler implements ResponseHan
                 ok.read(data);
                 lock.lock();
                 try {
-                    ok.setPacketId(++packetId);
+                    ok.setPacketId(session.getShardingService().nextPacketId());
                     ok.setServerStatus(session.getShardingService().isAutocommit() ? 2 : 1);
                 } finally {
                     lock.unlock();
                 }
-                session.multiStatementPacket(ok, packetId);
+                session.multiStatementPacket(ok);
                 boolean multiStatementFlag = session.getIsMultiStatement().get();
                 ok.write(session.getFrontConnection());
                 session.multiStatementNextSql(multiStatementFlag);

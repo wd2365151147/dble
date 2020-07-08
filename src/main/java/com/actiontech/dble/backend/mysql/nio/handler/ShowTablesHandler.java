@@ -63,30 +63,27 @@ public class ShowTablesHandler extends SingleNodeHandler {
                 return;
             }
             String schemaColumn = showTableSchema;
+            this.fieldCount = fields.size();
             if (info.getLike() != null) {
                 schemaColumn = schemaColumn + " (" + info.getLike() + ")";
             }
             if (info.isFull()) {
                 List<FieldPacket> fieldPackets = new ArrayList<>(2);
                 bufInf = ShowTables.writeFullTablesHeader(buffer, shardingService, schemaColumn, fieldPackets);
-                packetId = bufInf.getPacketId();
                 buffer = bufInf.getBuffer();
                 if (info.getWhere() != null) {
                     MySQLItemVisitor mev = new MySQLItemVisitor(shardingService.getSchema(), shardingService.getCharset().getResultsIndex(), ProxyMeta.getInstance().getTmManager(), shardingService.getUsrVariables());
                     info.getWhereExpr().accept(mev);
                     sourceFields = HandlerTool.createFields(fieldPackets);
                     whereItem = HandlerTool.createItem(mev.getItem(), sourceFields, 0, false, DMLResponseHandler.HandlerType.WHERE);
-                    bufInf = ShowTables.writeFullTablesRow(buffer, shardingService, shardingTablesMap, packetId, whereItem, sourceFields);
-                    packetId = bufInf.getPacketId();
+                    bufInf = ShowTables.writeFullTablesRow(buffer, shardingService, shardingTablesMap, whereItem, sourceFields);
                     buffer = bufInf.getBuffer();
                 } else {
-                    bufInf = ShowTables.writeFullTablesRow(buffer, shardingService, shardingTablesMap, packetId, null, null);
-                    packetId = bufInf.getPacketId();
+                    bufInf = ShowTables.writeFullTablesRow(buffer, shardingService, shardingTablesMap, null, null);
                     buffer = bufInf.getBuffer();
                 }
             } else {
                 bufInf = ShowTables.writeTablesHeaderAndRows(buffer, shardingService, shardingTablesMap, schemaColumn);
-                packetId = bufInf.getPacketId();
                 buffer = bufInf.getBuffer();
             }
         } finally {

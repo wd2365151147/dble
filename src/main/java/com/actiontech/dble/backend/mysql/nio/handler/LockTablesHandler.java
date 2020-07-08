@@ -115,12 +115,12 @@ public class LockTablesHandler extends MultiNodeHandler {
                 ok.read(data);
                 lock.lock();
                 try {
-                    ok.setPacketId(++packetId);
+                    ok.setPacketId(session.getShardingService().nextPacketId());
                     ok.setServerStatus(session.getShardingService().isAutocommit() ? 2 : 1);
                 } finally {
                     lock.unlock();
                 }
-                session.multiStatementPacket(ok, packetId);
+                session.multiStatementPacket(ok);
                 boolean multiStatementFlag = session.getIsMultiStatement().get();
                 ok.write(session.getFrontConnection());
                 session.multiStatementNextSql(multiStatementFlag);

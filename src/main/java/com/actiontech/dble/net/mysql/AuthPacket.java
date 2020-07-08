@@ -10,7 +10,6 @@ import com.actiontech.dble.backend.mysql.BufferUtil;
 import com.actiontech.dble.backend.mysql.CharsetUtil;
 import com.actiontech.dble.backend.mysql.MySQLMessage;
 import com.actiontech.dble.backend.mysql.StreamUtil;
-import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
 import com.actiontech.dble.config.Capabilities;
 import com.actiontech.dble.net.connection.AbstractConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLResponseService;
@@ -187,11 +186,11 @@ public class AuthPacket extends MySQLPacket {
             BufferUtil.writeWithNull(buffer, HandshakeV10Packet.NATIVE_PASSWORD_PLUGIN);
         }
 
-        service.write(buffer);
+        service.writeDirectly(buffer);
     }
 
 
-    public void writeWithKey(OutputStream out) throws IOException {
+    public void bufferWrite(OutputStream out) throws IOException {
         if (database != null) {
             StreamUtil.writeUB3(out, calcPacketSizeWithKey());
         } else {
@@ -220,7 +219,7 @@ public class AuthPacket extends MySQLPacket {
         }
     }
 
-    public void writeWithKey(AbstractConnection c) {
+    public void bufferWrite(AbstractConnection c) {
         ByteBuffer buffer = c.allocate();
         BufferUtil.writeUB3(buffer, calcPacketSizeWithKey());
         buffer.put(packetId);

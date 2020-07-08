@@ -34,10 +34,13 @@ import com.actiontech.dble.server.util.SchemaUtil;
 import com.actiontech.dble.services.MySQLBasedService;
 import com.actiontech.dble.singleton.FrontendUserManager;
 import com.actiontech.dble.singleton.RouteService;
+import com.actiontech.dble.singleton.SerializableLock;
 import com.actiontech.dble.statistic.CommandCount;
 import com.actiontech.dble.util.SplitUtil;
 import com.actiontech.dble.util.StringUtil;
 import com.actiontech.dble.util.TimeUtil;
+import com.alibaba.druid.wall.WallCheckResult;
+import com.alibaba.druid.wall.WallProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,7 +87,7 @@ public class MySQLShardingService extends MySQLBasedService implements FrontEndS
 
     protected boolean isAuthenticated;
 
-    private AtomicLong txID;
+    private AtomicLong txID = new AtomicLong(1);
 
     private volatile boolean isLocked = false;
 
@@ -94,8 +97,8 @@ public class MySQLShardingService extends MySQLBasedService implements FrontEndS
 
     private volatile boolean multiStatementAllow = false;
 
-    protected volatile Map<String, String> usrVariables;
-    protected volatile Map<String, String> sysVariables;
+    protected final Map<String, String> usrVariables = new LinkedHashMap<>();
+    protected final Map<String, String> sysVariables = new LinkedHashMap<>();
 
     private final NonBlockingSession session;
 
@@ -119,6 +122,25 @@ public class MySQLShardingService extends MySQLBasedService implements FrontEndS
     }
 
     public void query(String sql) {
+        WallProvider blackList = ((ShardingUserConfig) userConfig).getBlacklist();
+        if (blackList != null) {
+            WallCheckResult result = blackList.check(sql);
+            if (!result.getViolations().isEmpty()) {
+                LOGGER.warn("Firewall to intercept the '" + user + "' unsafe SQL , errMsg:" +
+                        result.getViolations().get(0).getMessage() + " \r\n " + sql);
+                writeErrMessage(ErrorCode.ERR_WRONG_USED, "The statement is unsafe SQL, reject for user '" + user + "'");
+                return;
+            }
+        }
+
+        SerializableLock.getInstance().lock(this.connection.getId());
+
+        boolean readOnly = false;
+        if (userConfig instanceof ShardingUserConfig) {
+            readOnly = ((ShardingUserConfig) userConfig).isReadOnly();
+        }
+        this.handler.setReadOnly(readOnly);
+        this.handler.setSessionReadOnly(sessionReadOnly);
         this.handler.query(sql);
     }
 
@@ -662,10 +684,6 @@ public class MySQLShardingService extends MySQLBasedService implements FrontEndS
         return usrVariables;
     }
 
-    public void setUsrVariables(Map<String, String> usrVariables) {
-        this.usrVariables = usrVariables;
-    }
-
     public long getLastInsertId() {
         return lastInsertId;
     }
@@ -695,9 +713,6 @@ public class MySQLShardingService extends MySQLBasedService implements FrontEndS
         return sysVariables;
     }
 
-    public void setSysVariables(Map<String, String> sysVariables) {
-        this.sysVariables = sysVariables;
-    }
 
     public List<Pair<SetHandler.KeyType, Pair<String, String>>> getContextTask() {
         return contextTask;

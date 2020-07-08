@@ -1,7 +1,5 @@
 package com.actiontech.dble.backend.mysql.nio.handler;
 
-import com.actiontech.dble.backend.BackendConnection;
-import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
 import com.actiontech.dble.cluster.values.DDLTraceInfo;
 import com.actiontech.dble.config.ErrorCode;
 import com.actiontech.dble.net.mysql.ErrorPacket;
@@ -10,7 +8,6 @@ import com.actiontech.dble.net.service.AbstractService;
 import com.actiontech.dble.route.RouteResultset;
 import com.actiontech.dble.route.RouteResultsetNode;
 import com.actiontech.dble.server.NonBlockingSession;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLResponseService;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.singleton.DDLTraceManager;
@@ -82,14 +79,14 @@ public class SingleNodeDDLHandler extends SingleNodeHandler {
                 MySQLShardingService sessionShardingService = session.getShardingService();
                 OkPacket ok = new OkPacket();
                 ok.read(data);
-                ok.setPacketId(++packetId); // OK_PACKET
+                ok.setPacketId(sessionShardingService.nextPacketId()); // OK_PACKET
                 ok.setMessage(null);
                 ok.setServerStatus(sessionShardingService.isAutocommit() ? 2 : 1);
                 sessionShardingService.setLastInsertId(ok.getInsertId());
                 session.setBackendResponseEndTime((MySQLResponseService) service);
                 session.releaseConnectionIfSafe((MySQLResponseService) service, false);
                 session.setResponseTime(true);
-                session.multiStatementPacket(ok, packetId);
+                session.multiStatementPacket(ok);
                 boolean multiStatementFlag = session.getIsMultiStatement().get();
                 if (writeToClient.compareAndSet(false, true)) {
                     ok.write(sessionShardingService.getConnection());
@@ -101,7 +98,7 @@ public class SingleNodeDDLHandler extends SingleNodeHandler {
 
     private void executeMetaDataFailed(MySQLResponseService service) {
         ErrorPacket errPacket = new ErrorPacket();
-        errPacket.setPacketId(++packetId);
+        errPacket.setPacketId(session.getShardingService().nextPacketId());
         errPacket.setErrNo(ErrorCode.ER_META_DATA);
         String errMsg = "Create TABLE OK, but generate metedata failed. The reason may be that the current druid parser can not recognize part of the sql" +
                 " or the user for backend mysql does not have permission to execute the heartbeat sql.";
@@ -110,7 +107,7 @@ public class SingleNodeDDLHandler extends SingleNodeHandler {
         session.setBackendResponseEndTime(service);
         session.releaseConnectionIfSafe(service, false);
         session.setResponseTime(false);
-        session.multiStatementPacket(errPacket, packetId);
+        session.multiStatementPacket(errPacket);
         boolean multiStatementFlag = session.getIsMultiStatement().get();
         doSqlStat();
         if (writeToClient.compareAndSet(false, true)) {

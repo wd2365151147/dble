@@ -5,13 +5,10 @@
 
 package com.actiontech.dble.backend.mysql;
 
-import com.actiontech.dble.backend.BackendConnection;
-import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
 import com.actiontech.dble.config.model.SystemConfig;
 import com.actiontech.dble.net.mysql.BinaryPacket;
 import com.actiontech.dble.route.RouteResultsetNode;
 import com.actiontech.dble.services.mysqlsharding.MySQLResponseService;
-import com.actiontech.dble.singleton.WriteQueueFlowController;
 import com.actiontech.dble.sqlengine.mpp.LoadData;
 
 import java.io.*;
@@ -58,7 +55,7 @@ public final class LoadDataUtil {
             //send empty packet
             byte[] empty = new byte[]{0, 0, 0, 3};
             empty[3] = ++packId;
-            service.write(empty);
+            service.writeDirectly(empty);
         }
     }
 

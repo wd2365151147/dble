@@ -257,7 +257,7 @@ public class ServerConnection extends FrontendConnection {
         OkPacket ok = new OkPacket();
         ok.read(OkPacket.OK);
         ok.setPacketId(packetId);
-        ok.write(this);
+        //ok.write(this);
     }
 
     @Override
@@ -577,7 +577,7 @@ public class ServerConnection extends FrontendConnection {
             AuthSwitchRequestPackage authSwitch = new AuthSwitchRequestPackage(changeUserPacket.getAuthPlugin().getBytes(), this.getSeed());
             authSwitch.setPacketId(changeUserPacket.getPacketId() + 1);
             isAuthSwitch.set(true);
-            authSwitch.write(this);
+            //authSwitch.write(this);
         } else {
             writeErrMessage((byte) (changeUserPacket.getPacketId() + 1), ErrorCode.ER_PLUGIN_IS_NOT_LOADED, "NOT SUPPORT THIS PLUGIN!");
         }

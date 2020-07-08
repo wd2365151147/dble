@@ -414,7 +414,7 @@ public abstract class AbstractConnection implements NIOConnection {
     public void write(ByteBuffer buffer) {
         if (isClosed) {
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("it will not write because of closed " + this);
+                LOGGER.debug("it will not writeDirectly because of closed " + this);
             }
             if (buffer != null) {
                 recycle(buffer);
@@ -429,27 +429,27 @@ public abstract class AbstractConnection implements NIOConnection {
             writeQueue.offer(buffer);
         }
 
-        // if ansyn write finished event got lock before me ,then writing
-        // flag is set false but not start a write request
+        // if ansyn writeDirectly finished event got lock before me ,then writing
+        // flag is set false but not start a writeDirectly request
         // so we check again
         try {
             this.socketWR.doNextWriteCheck();
         } catch (Exception e) {
-            LOGGER.info("write err:", e);
-            this.close("write err:" + e);
+            LOGGER.info("writeDirectly err:", e);
+            this.close("writeDirectly err:" + e);
         }
     }
 
     public final boolean registerWrite(ByteBuffer buffer) {
 
-        // if ansyn write finished event got lock before me ,then writing
-        // flag is set false but not start a write request
+        // if ansyn writeDirectly finished event got lock before me ,then writing
+        // flag is set false but not start a writeDirectly request
         // so we check again
         try {
             return this.socketWR.registerWrite(buffer);
         } catch (Exception e) {
-            LOGGER.info("write err:", e);
-            this.close("write err:" + e);
+            LOGGER.info("writeDirectly err:", e);
+            this.close("writeDirectly err:" + e);
             return false;
         }
     }
@@ -734,7 +734,7 @@ public abstract class AbstractConnection implements NIOConnection {
     }
 
     /*
-     * start flow control because of the write queue in this connection to long
+     * start flow control because of the writeDirectly queue in this connection to long
      */
     public abstract void startFlowControl(BackendConnection bcon);
 

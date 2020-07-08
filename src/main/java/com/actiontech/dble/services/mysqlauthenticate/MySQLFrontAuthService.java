@@ -124,7 +124,7 @@ public class MySQLFrontAuthService extends MySQLBasedService implements AuthServ
     private void requestToSwitch(PluginName name) {
         AuthSwitchRequestPackage authSwitch = new AuthSwitchRequestPackage(name.toString().getBytes(), seed);
         authSwitch.setPacketId(this.nextPacketId());
-        authSwitch.write(connection);
+        authSwitch.bufferWrite(connection);
     }
 
     private boolean isPluginSupported(String authPlugin) {

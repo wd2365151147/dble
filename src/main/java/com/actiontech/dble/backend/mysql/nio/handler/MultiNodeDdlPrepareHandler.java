@@ -275,7 +275,7 @@ public class MultiNodeDdlPrepareHandler extends MultiNodeHandler implements Exec
                         DDLTraceManager.getInstance().endDDL(shardingService, "Query was interrupted");
                         session.handleSpecial(oriRrs, false, null);
                         ErrorPacket errPacket = new ErrorPacket();
-                        errPacket.setPacketId(++packetId);
+                        errPacket.setPacketId(session.getShardingService().nextPacketId());
                         errPacket.setErrNo(ErrorCode.ER_QUERY_INTERRUPTED);
                         errPacket.setMessage(StringUtil.encode("Query was interrupted", shardingService.getCharset().getResults()));
                         handleRollbackPacket(errPacket.toBytes(), "Query was interrupted");

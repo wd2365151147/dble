@@ -108,8 +108,9 @@ public class ErrorPacket extends MySQLPacket {
     }
 
 
-    public void write(AbstractConnection c) {
-        /* todo change the logic into the normal place
+    @Override
+    public void bufferWrite(AbstractConnection c) {
+        /* todo change the logic into the normal place 在提供sharding服务的那个方法里面使用多态来进行处理
           if (c instanceof ServerConnection) {
             SerializableLock.getInstance().unLock(c.getId());
         }*/

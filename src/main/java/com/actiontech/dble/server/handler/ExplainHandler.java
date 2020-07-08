@@ -27,7 +27,6 @@ import com.actiontech.dble.plan.util.ReferenceHandlerInfo;
 import com.actiontech.dble.plan.visitor.MySQLPlanNodeVisitor;
 import com.actiontech.dble.route.RouteResultset;
 import com.actiontech.dble.route.RouteResultsetNode;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.parser.ServerParse;
 import com.actiontech.dble.server.util.SchemaUtil;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
@@ -202,24 +201,24 @@ public final class ExplainHandler {
 
     public static void writeOutHeadAndEof(MySQLShardingService service, RouteResultset rrs) {
         ByteBuffer buffer = service.allocate();
-        // write header
+        // writeDirectly header
         ResultSetHeaderPacket header = PacketUtil.getHeader(FIELD_COUNT);
         byte packetId = header.getPacketId();
         buffer = header.write(buffer, service, true);
 
-        // write fields
+        // writeDirectly fields
         for (FieldPacket field : FIELDS) {
             field.setPacketId(++packetId);
             buffer = field.write(buffer, service, true);
         }
 
-        // write eof
+        // writeDirectly eof
         EOFPacket eof = new EOFPacket();
         eof.setPacketId(++packetId);
         buffer = eof.write(buffer, service, true);
 
         if (!rrs.isNeedOptimizer()) {
-            // write rows
+            // writeDirectly rows
             for (RouteResultsetNode node : rrs.getNodes()) {
                 RowDataPacket row = getRow(node, service.getCharset().getResults());
                 row.setPacketId(++packetId);
@@ -237,12 +236,12 @@ public final class ExplainHandler {
                 buffer = row.write(buffer, service, true);
             }
         }
-        // write last eof
+        // writeDirectly last eof
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
         buffer = lastEof.write(buffer, service, true);
 
-        // post write
-        service.write(buffer);
+        // post writeDirectly
+        service.writeDirectly(buffer);
     }
 }

@@ -40,7 +40,7 @@ public class ManagerQueryHandler {
                 break;
             case ManagerParse.SET:
                 //todo set 什么都应该返回OK
-                //service.write(service.writeToBuffer(OkPacket.OK, service.allocate()));
+                //service.writeDirectly(service.writeToBuffer(OkPacket.OK, service.allocate()));
                 break;
             case ManagerParse.SHOW:
                 ShowHandler.handle(sql, service, rs >>> SHIFT);

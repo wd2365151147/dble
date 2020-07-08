@@ -5,7 +5,6 @@
 
 package com.actiontech.dble.backend.mysql.nio.handler.query.impl;
 
-import com.actiontech.dble.backend.BackendConnection;
 import com.actiontech.dble.backend.mysql.nio.handler.query.BaseDMLHandler;
 import com.actiontech.dble.backend.mysql.nio.handler.util.HandlerTool;
 import com.actiontech.dble.config.ErrorCode;
@@ -13,7 +12,6 @@ import com.actiontech.dble.config.model.SystemConfig;
 import com.actiontech.dble.net.mysql.*;
 import com.actiontech.dble.net.service.AbstractService;
 import com.actiontech.dble.server.NonBlockingSession;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.parser.ServerParse;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.statistic.stat.QueryResult;
@@ -67,7 +65,7 @@ public class OutputHandler extends BaseDMLHandler {
             } else {
                 HandlerTool.terminateHandlerTree(this);
                 buffer = sessionShardingService.writeToBuffer(ok, buffer);
-                sessionShardingService.write(buffer);
+                sessionShardingService.writeDirectly(buffer);
             }
             session.multiStatementNextSql(multiStatementFlag);
         } finally {
@@ -195,7 +193,7 @@ public class OutputHandler extends BaseDMLHandler {
             session.setHandlerEnd(this);
             session.setResponseTime(true);
             boolean multiStatementFlag = session.getIsMultiStatement().get();
-            mySQLShardingService.write(buffer);
+            mySQLShardingService.writeDirectly(buffer);
             session.multiStatementNextSql(multiStatementFlag);
         } finally {
             lock.unlock();

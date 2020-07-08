@@ -6,7 +6,6 @@
 package com.actiontech.dble.server.response;
 
 import com.actiontech.dble.backend.mysql.PreparedStatement;
-import com.actiontech.dble.net.connection.AbstractConnection;
 import com.actiontech.dble.net.mysql.EOFPacket;
 import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.PreparedOkPacket;
@@ -24,7 +23,7 @@ public final class PreparedStmtResponse {
     public static void response(PreparedStatement pStmt, MySQLShardingService service) {
         byte packetId = 0;
 
-        // write preparedOk packet
+        // writeDirectly preparedOk packet
         PreparedOkPacket preparedOk = new PreparedOkPacket();
         preparedOk.setPacketId(++packetId);
         preparedOk.setStatementId(pStmt.getId());
@@ -32,7 +31,7 @@ public final class PreparedStmtResponse {
         preparedOk.setParametersNumber(pStmt.getParametersNumber());
         ByteBuffer buffer = preparedOk.write(service.allocate(), service, true);
 
-        // write parameter field packet
+        // writeDirectly parameter field packet
         int parametersNumber = preparedOk.getParametersNumber();
         if (parametersNumber > 0) {
             for (int i = 0; i < parametersNumber; i++) {
@@ -45,7 +44,7 @@ public final class PreparedStmtResponse {
             buffer = eof.write(buffer, service, true);
         }
 
-        // write column field packet
+        // writeDirectly column field packet
         int columnsNumber = preparedOk.getColumnsNumber();
         if (columnsNumber > 0) {
             for (int i = 0; i < columnsNumber; i++) {
@@ -59,7 +58,7 @@ public final class PreparedStmtResponse {
         }
 
         // send buffer
-        service.write(buffer);
+        service.writeDirectly(buffer);
     }
 
 }

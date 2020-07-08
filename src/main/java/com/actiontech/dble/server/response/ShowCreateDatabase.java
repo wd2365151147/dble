@@ -15,7 +15,6 @@ import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.ResultSetHeaderPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
 import com.actiontech.dble.route.factory.RouteStrategyFactory;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.StringUtil;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowCreateDatabaseStatement;
@@ -58,25 +57,25 @@ public final class ShowCreateDatabase {
                 throw new Exception("Unknown schema '" + schema + "' in config");
             }
             ByteBuffer buffer = shardingService.allocate();
-            // write header
+            // writeDirectly header
             buffer = HEADER.write(buffer, shardingService, true);
-            // write fields
+            // writeDirectly fields
             for (FieldPacket field : FIELDS) {
                 buffer = field.write(buffer, shardingService, true);
             }
-            // write eof
+            // writeDirectly eof
             buffer = EOF.write(buffer, shardingService, true);
-            // write rows
+            // writeDirectly rows
             byte packetId = EOF.getPacketId();
             RowDataPacket row = getRow(schema, shardingService.getCharset().getResults());
             row.setPacketId(++packetId);
             buffer = row.write(buffer, shardingService, true);
-            // write last eof
+            // writeDirectly last eof
             EOFPacket lastEof = new EOFPacket();
             lastEof.setPacketId(++packetId);
             buffer = lastEof.write(buffer, shardingService, true);
-            // write buffer
-            shardingService.write(buffer);
+            // writeDirectly buffer
+            shardingService.writeDirectly(buffer);
         } catch (Exception e) {
             shardingService.writeErrMessage(ErrorCode.ER_PARSE_ERROR, e.getMessage());
         }

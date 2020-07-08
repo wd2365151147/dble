@@ -140,12 +140,12 @@ public class ServerQueryHandler implements FrontendQueryHandler {
                     break;
                 case ServerParse.MYSQL_CMD_COMMENT:
                     boolean multiStatementFlag = this.service.getSession2().getIsMultiStatement().get();
-                    service.write(service.writeToBuffer(this.service.getSession2().getOkByteArray(), service.allocate()));
+                    service.writeDirectly(service.writeToBuffer(this.service.getSession2().getOkByteArray(), service.allocate()));
                     service.getSession2().multiStatementNextSql(multiStatementFlag);
                     break;
                 case ServerParse.MYSQL_COMMENT:
                     boolean multiStatementFlag2 = this.service.getSession2().getIsMultiStatement().get();
-                    service.write(service.writeToBuffer(this.service.getSession2().getOkByteArray(), service.allocate()));
+                    service.writeDirectly(service.writeToBuffer(this.service.getSession2().getOkByteArray(), service.allocate()));
                     service.getSession2().multiStatementNextSql(multiStatementFlag2);
                     break;
                 case ServerParse.LOAD_DATA_INFILE_SQL:

@@ -7,6 +7,7 @@ package com.actiontech.dble.net.mysql;
 
 import com.actiontech.dble.backend.mysql.BufferUtil;
 import com.actiontech.dble.net.FrontendConnection;
+import com.actiontech.dble.net.connection.AbstractConnection;
 
 import java.nio.ByteBuffer;
 
@@ -36,7 +37,7 @@ public class AuthSwitchRequestPackage extends MySQLPacket {
         this.authPluginData = authPluginData;
     }
 
-    public void write(FrontendConnection c) {
+    public void bufferWrite(AbstractConnection c) {
         ByteBuffer buffer = c.allocate();
         BufferUtil.writeUB3(buffer, calcPacketSize());
         buffer.put(packetId);

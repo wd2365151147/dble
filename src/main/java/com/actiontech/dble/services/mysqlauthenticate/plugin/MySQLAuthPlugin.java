@@ -67,7 +67,7 @@ public abstract class MySQLAuthPlugin {
         hs.setServerStatus(2);
         hs.setRestOfScrambleBuff(rand2);
 
-        //write out
+        //writeDirectly out
         hs.write(connection);
         return seed;
     }
@@ -130,7 +130,7 @@ public abstract class MySQLAuthPlugin {
         packet.setClientFlags(getClientFlagSha());
         packet.setAuthPlugin(authPluginName);
         packet.setDatabase(schema);
-        packet.writeWithKey(this.connection);
+        packet.bufferWrite(this.connection);
     }
 
     private long getClientFlagSha() {

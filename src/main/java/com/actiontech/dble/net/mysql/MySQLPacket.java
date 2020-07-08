@@ -181,25 +181,27 @@ public abstract class MySQLPacket {
     protected byte packetId;
 
     /**
-     * write to buffer ,if writeSocketIfFull write the buffer data to FrontendConnection
+     * writeDirectly to buffer ,if writeSocketIfFull writeDirectly the buffer data to FrontendConnection
      */
     public ByteBuffer write(ByteBuffer buffer, AbstractService service, boolean writeSocketIfFull) {
         throw new UnsupportedOperationException();
     }
 
     /**
-     * write to backend connection
+     * writeDirectly to backend connection
      */
     public void write(MySQLResponseService service) {
-        throw new UnsupportedOperationException();
+         this.write(service.getConnection());
     }
 
     /**
-     * write to a net connection
+     * writeDirectly to a net connection
      */
-    public void write(AbstractConnection connection) {
-
+    public final void write(AbstractConnection connection) {
+        connection.getService().write(this);
     }
+
+    public abstract void bufferWrite(AbstractConnection connection);
 
     /**
      * calcPacketSize,not contains header size

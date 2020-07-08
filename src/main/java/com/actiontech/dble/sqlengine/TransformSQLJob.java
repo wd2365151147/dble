@@ -8,7 +8,6 @@ package com.actiontech.dble.sqlengine;
 import com.actiontech.dble.DbleServer;
 import com.actiontech.dble.backend.datasource.PhysicalDbInstance;
 import com.actiontech.dble.backend.datasource.ShardingNode;
-import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
 import com.actiontech.dble.backend.mysql.nio.handler.ResponseHandler;
 import com.actiontech.dble.config.ErrorCode;
 import com.actiontech.dble.net.connection.BackendConnection;
@@ -97,28 +96,28 @@ public class TransformSQLJob implements ResponseHandler, Runnable {
 
     @Override
     public void okResponse(byte[] ok, AbstractService service) {
-        this.service.write(ok);
+        this.service.writeDirectly(ok);
         connection.release();
     }
 
     @Override
     public void fieldEofResponse(byte[] header, List<byte[]> fields, List<FieldPacket> fieldPackets, byte[] eof, boolean isLeft, AbstractService service) {
-        service.write(header);
+        service.writeDirectly(header);
         for (byte[] field : fields) {
-            service.write(field);
+            service.writeDirectly(field);
         }
-        service.write(eof);
+        service.writeDirectly(eof);
     }
 
     @Override
     public boolean rowResponse(byte[] row, RowDataPacket rowPacket, boolean isLeft, AbstractService service) {
-        service.write(row);
+        service.writeDirectly(row);
         return false;
     }
 
     @Override
     public void rowEofResponse(byte[] eof, boolean isLeft, AbstractService service) {
-        service.write(eof);
+        service.writeDirectly(eof);
         connection.release();
     }
 
@@ -132,7 +131,7 @@ public class TransformSQLJob implements ResponseHandler, Runnable {
     }
 
     private void writeError(byte[] err) {
-        service.write(err);
+        service.writeDirectly(err);
         if (connection != null) {
             connection.release();
         }

@@ -6,7 +6,6 @@
 package com.actiontech.dble.server.handler;
 
 import com.actiontech.dble.log.transaction.TxnLogHelper;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 
 public final class BeginHandler {
@@ -20,7 +19,7 @@ public final class BeginHandler {
             service.setTxStarted(true);
             TxnLogHelper.putTxnLog(service, stmt);
             boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
-            service.write(service.writeToBuffer(service.getSession2().getOkByteArray(), service.allocate()));
+            service.writeDirectly(service.writeToBuffer(service.getSession2().getOkByteArray(), service.allocate()));
             service.getSession2().multiStatementNextSql(multiStatementFlag);
         }
     }

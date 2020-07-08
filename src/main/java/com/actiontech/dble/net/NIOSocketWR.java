@@ -145,7 +145,7 @@ public class NIOSocketWR extends SocketWR {
                     } else {
                         startClearCon();
                         con.isClosed = true;
-                        AbstractConnection.LOGGER.info("write quit error and ignore ");
+                        AbstractConnection.LOGGER.info("writeDirectly quit error and ignore ");
                         return true;
                     }
                 }
@@ -194,7 +194,7 @@ public class NIOSocketWR extends SocketWR {
                 } else {
                     startClearCon();
                     con.isClosed = true;
-                    AbstractConnection.LOGGER.info("write quit error and ignore ");
+                    AbstractConnection.LOGGER.info("writeDirectly quit error and ignore ");
                     return true;
                 }
             }
@@ -261,7 +261,7 @@ public class NIOSocketWR extends SocketWR {
             SelectionKey key = this.processKey;
             key.interestOps(key.interestOps() & OP_NOT_WRITE);
         } catch (Exception e) {
-            AbstractConnection.LOGGER.info("can't disable write " + e + " con " + con);
+            AbstractConnection.LOGGER.info("can't disable writeDirectly " + e + " con " + con);
         }
 
     }
@@ -273,7 +273,7 @@ public class NIOSocketWR extends SocketWR {
             key.interestOps(key.interestOps() | SelectionKey.OP_WRITE);
             needWakeup = true;
         } catch (Exception e) {
-            AbstractConnection.LOGGER.info("can't enable write " + e);
+            AbstractConnection.LOGGER.info("can't enable writeDirectly " + e);
 
         }
         if (needWakeup && wakeup) {

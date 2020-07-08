@@ -88,9 +88,9 @@ public class MySQLConnectionAuthenticator implements NIOHandler {
                     authPluginName = bin2.getAuthPluginName(data);
                     authPluginData = bin2.getAuthPluginData(data);
                     if (authPluginName.equals(new String(HandshakeV10Packet.NATIVE_PASSWORD_PLUGIN))) {
-                        source.write(PasswordAuthPlugin.nativePassword(PasswordAuthPlugin.passwd(source.getPassword(), source.getHandshake())));
+                        source.writeDirectly(PasswordAuthPlugin.nativePassword(PasswordAuthPlugin.passwd(source.getPassword(), source.getHandshake())));
                     } else if (authPluginName.equals(new String(HandshakeV10Packet.CACHING_SHA2_PASSWORD_PLUGIN))) {
-                        source.write(PasswordAuthPlugin.cachingSha2Password(PasswordAuthPlugin.passwdSha256(source.getPassword(), source.getHandshake())));
+                        source.writeDirectly(PasswordAuthPlugin.cachingSha2Password(PasswordAuthPlugin.passwdSha256(source.getPassword(), source.getHandshake())));
                     } else {
                         LOGGER.warn("Client don't support the MySQL 323 plugin ");
                         auth323(data[3]);
@@ -147,7 +147,7 @@ public class MySQLConnectionAuthenticator implements NIOHandler {
             byte[] seed = source.getHandshake().getSeed();
             r323.setSeed(SecurityUtil.scramble323(pass, new String(seed)).getBytes());
         }
-        r323.write(source);*/
+        r323.writeDirectly(source);*/
     }
 
     public boolean checkPubicKey(byte[] data) {

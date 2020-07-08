@@ -3,7 +3,6 @@ package com.actiontech.dble.server.handler;
 import com.actiontech.dble.config.ErrorCode;
 import com.actiontech.dble.log.transaction.TxnLogHelper;
 import com.actiontech.dble.route.parser.util.Pair;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.StringUtil;
 import com.alibaba.druid.sql.ast.SQLExpr;
@@ -28,7 +27,7 @@ public final class SetInnerHandler {
             String key = innerSetTask.get(0).getValue().getKey();
             shardingService.getSession2().getTransactionManager().setXaTxEnabled(Boolean.valueOf(key), shardingService);
             boolean multiStatementFlag = shardingService.getSession2().getIsMultiStatement().get();
-            shardingService.write(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
+            shardingService.writeDirectly(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
             shardingService.getSession2().multiStatementNextSql(multiStatementFlag);
             return true;
         }
@@ -64,7 +63,7 @@ public final class SetInnerHandler {
             String key = innerSetTask.get(0).getValue().getKey();
             shardingService.getSession2().setTrace(Boolean.valueOf(key));
             boolean multiStatementFlag = shardingService.getSession2().getIsMultiStatement().get();
-            shardingService.write(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
+            shardingService.writeDirectly(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
             shardingService.getSession2().multiStatementNextSql(multiStatementFlag);
             return true;
         }
@@ -90,7 +89,7 @@ public final class SetInnerHandler {
             String key = innerSetTask.get(0).getValue().getKey();
             if (!execSetAutoCommit(stmt, service, Boolean.valueOf(key))) {
                 boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
-                service.write(service.writeToBuffer(service.getSession2().getOkByteArray(), service.allocate()));
+                service.writeDirectly(service.writeToBuffer(service.getSession2().getOkByteArray(), service.allocate()));
                 service.getSession2().multiStatementNextSql(multiStatementFlag);
             }
             return true;
@@ -116,7 +115,7 @@ public final class SetInnerHandler {
             if (!shardingService.isAutocommit() && shardingService.getSession2().getTargetCount() > 0) {
                 shardingService.getSession2().implicitCommit(() -> {
                     boolean multiStatementFlag = shardingService.getSession2().getIsMultiStatement().get();
-                    shardingService.write(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
+                    shardingService.writeDirectly(shardingService.writeToBuffer(shardingService.getSession2().getOkByteArray(), shardingService.allocate()));
                     shardingService.getSession2().multiStatementNextSql(multiStatementFlag);
                 });
                 shardingService.setAutocommit(true);

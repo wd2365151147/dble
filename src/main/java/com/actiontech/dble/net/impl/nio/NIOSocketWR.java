@@ -136,7 +136,7 @@ public class NIOSocketWR extends SocketWR {
                         throw e;
                     } else {
                         con.close(con.getCloseReason());
-                        LOGGER.info("write quit error and ignore ");
+                        LOGGER.info("writeDirectly quit error and ignore ");
                         return true;
                     }
                 }
@@ -237,7 +237,7 @@ public class NIOSocketWR extends SocketWR {
             SelectionKey key = this.processKey;
             key.interestOps(key.interestOps() & OP_NOT_WRITE);
         } catch (Exception e) {
-            LOGGER.info("can't disable write " + e + " con " + con);
+            LOGGER.info("can't disable writeDirectly " + e + " con " + con);
         }
 
     }
@@ -249,7 +249,7 @@ public class NIOSocketWR extends SocketWR {
             key.interestOps(key.interestOps() | SelectionKey.OP_WRITE);
             needWakeup = true;
         } catch (Exception e) {
-            LOGGER.info("can't enable write " + e);
+            LOGGER.info("can't enable writeDirectly " + e);
 
         }
         if (needWakeup && wakeup) {

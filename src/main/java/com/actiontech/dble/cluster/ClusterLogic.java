@@ -493,7 +493,7 @@ public final class ClusterLogic {
                         try {
                             ConfFileRWUtils.writeFile(writeMsg.getName(), writeMsg.getValue());
                         } catch (IOException e) {
-                            LOGGER.warn("write File IOException", e);
+                            LOGGER.warn("writeDirectly File IOException", e);
                         }
                     }
                 }
@@ -857,11 +857,11 @@ public final class ClusterLogic {
         String path = ResourceUtil.getResourcePathFromRoot(ClusterPathUtil.LOCAL_WRITE_PATH);
         path = new File(path).getPath() + File.separator + ConfigFileName.DB_XML;
 
-        LOGGER.info("cluster to local xml write Path :" + path);
+        LOGGER.info("cluster to local xml writeDirectly Path :" + path);
 
         xmlParseBase.baseParseAndWriteToXml(dbs, path, "db");
 
-        LOGGER.info("cluster to local xml write :" + path + " is success");
+        LOGGER.info("cluster to local xml writeDirectly :" + path + " is success");
     }
 
     public static void syncDbXmlToCluster(XmlProcessBase xmlParseBase) throws Exception {
@@ -869,7 +869,7 @@ public final class ClusterLogic {
         String path = ClusterPathUtil.LOCAL_WRITE_PATH + ConfigFileName.DB_XML;
         String json = parseDbGroupXmlFileToJson(xmlParseBase, new Gson(), path);
         ClusterHelper.setKV(ClusterPathUtil.getDbConfPath(), json);
-        LOGGER.info("xml local to cluster write :" + path + " is success");
+        LOGGER.info("xml local to cluster writeDirectly :" + path + " is success");
     }
 
     public static void syncShardingXmlToCluster(XmlProcessBase xmlParseBase, Gson gson) throws Exception {
@@ -877,7 +877,7 @@ public final class ClusterLogic {
         String path = ClusterPathUtil.LOCAL_WRITE_PATH + ConfigFileName.SHARDING_XML;
         String json = ClusterLogic.parseShardingXmlFileToJson(xmlParseBase, gson, path);
         ClusterHelper.setKV(ClusterPathUtil.getConfShardingPath(), json);
-        LOGGER.info("xml local to cluster write :" + path + " is success");
+        LOGGER.info("xml local to cluster writeDirectly :" + path + " is success");
     }
 
     public static void syncShardingXmlToLocal(KvBean configValue, XmlProcessBase xmlParseBase, Gson gson) throws Exception {
@@ -898,7 +898,7 @@ public final class ClusterLogic {
 
         xmlParseBase.baseParseAndWriteToXml(sharding, path, "sharding");
 
-        LOGGER.info("cluster to local write :" + path + " is success");
+        LOGGER.info("cluster to local writeDirectly :" + path + " is success");
     }
 
 
@@ -907,7 +907,7 @@ public final class ClusterLogic {
         String path = ClusterPathUtil.LOCAL_WRITE_PATH + ConfigFileName.USER_XML;
         String json = ClusterLogic.parseUserXmlFileToJson(xmlParseBase, gson, path);
         ClusterHelper.setKV(ClusterPathUtil.getUserConfPath(), json);
-        LOGGER.info("xml local to cluster write :" + path + " is success");
+        LOGGER.info("xml local to cluster writeDirectly :" + path + " is success");
     }
 
     public static void syncUserXmlToLocal(KvBean configValue, XmlProcessBase xmlParseBase, Gson gson) throws Exception {
@@ -927,7 +927,7 @@ public final class ClusterLogic {
 
         xmlParseBase.baseParseAndWriteToXml(users, path, "user");
 
-        LOGGER.info("cluster to local write :" + path + " is success");
+        LOGGER.info("cluster to local writeDirectly :" + path + " is success");
     }
 
     public static void syncDbGroupStatusToCluster() throws Exception {

@@ -7,7 +7,6 @@ package com.actiontech.dble.server.response;
 
 import com.actiontech.dble.config.ErrorCode;
 import com.actiontech.dble.net.mysql.OkPacket;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 
 public final class SptDrop {
@@ -17,7 +16,7 @@ public final class SptDrop {
     public static void response(MySQLShardingService service) {
         String name = service.getSptPrepare().getName();
         if (service.getSptPrepare().delPrepare(name)) {
-            service.write(service.writeToBuffer(OkPacket.OK, service.allocate()));
+            service.writeDirectly(service.writeToBuffer(OkPacket.OK, service.allocate()));
         } else {
             service.writeErrMessage(ErrorCode.ER_UNKNOWN_STMT_HANDLER, "Unknown prepared statement handler" + name + " given to DEALLOCATE PREPARE");
         }

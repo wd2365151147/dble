@@ -15,7 +15,6 @@ import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.ResultSetHeaderPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
 import com.actiontech.dble.route.factory.RouteStrategyFactory;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.singleton.ProxyMeta;
 import com.actiontech.dble.util.StringUtil;
@@ -106,25 +105,25 @@ public final class ShowCreateView {
         }
 
         ByteBuffer buffer = service.allocate();
-        // write header
+        // writeDirectly header
         buffer = HEADER.write(buffer, service, true);
-        // write fields
+        // writeDirectly fields
         for (FieldPacket field : FIELDS) {
             buffer = field.write(buffer, service, true);
         }
-        // write eof
+        // writeDirectly eof
         buffer = EOF.write(buffer, service, true);
-        // write rows
+        // writeDirectly rows
         byte packetId = EOF.getPacketId();
         RowDataPacket row = getRow(view, service.getCharset().getResults(), service.getCharset().getCollation());
         row.setPacketId(++packetId);
         buffer = row.write(buffer, service, true);
-        // write last eof
+        // writeDirectly last eof
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
         buffer = lastEof.write(buffer, service, true);
-        // write buffer
-        service.write(buffer);
+        // writeDirectly buffer
+        service.writeDirectly(buffer);
     }
 
     public static RowDataPacket getRow(ViewMeta view, String charset, String collationConnection) {

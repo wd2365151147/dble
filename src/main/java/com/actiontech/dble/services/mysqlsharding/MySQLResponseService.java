@@ -2,7 +2,6 @@ package com.actiontech.dble.services.mysqlsharding;
 
 import com.actiontech.dble.DbleServer;
 import com.actiontech.dble.backend.mysql.CharsetUtil;
-import com.actiontech.dble.backend.mysql.nio.MySQLConnection;
 import com.actiontech.dble.backend.mysql.nio.handler.ResponseHandler;
 import com.actiontech.dble.backend.mysql.proto.handler.Impl.MySQLProtoHandlerImpl;
 import com.actiontech.dble.backend.mysql.xa.TxState;
@@ -59,8 +58,6 @@ public class MySQLResponseService extends MySQLBasedService {
 
     private final MySQLConnectionStatus status = new MySQLConnectionStatus();
 
-    private volatile String schema = null;
-    private volatile String oldSchema;
     private volatile boolean metaDataSynced = true;
     protected volatile Map<String, String> usrVariables = new LinkedHashMap<>();
     protected volatile Map<String, String> sysVariables = new LinkedHashMap<>();
@@ -76,6 +73,7 @@ public class MySQLResponseService extends MySQLBasedService {
     private volatile TxState xaStatus = TxState.TX_INITIALIZE_STATE;
     private boolean autocommitSynced;
     private boolean isolationSynced;
+    private volatile String dbuser;
 
     private MysqlBackendLogicHandler logicHandler;
 
@@ -84,6 +82,8 @@ public class MySQLResponseService extends MySQLBasedService {
 
     private volatile int totalCommand = 0;
     private volatile int taskCommand = 0;
+
+    protected BackendConnection connection;
 
     static {
         COMMIT.setPacketId(0);
@@ -96,9 +96,28 @@ public class MySQLResponseService extends MySQLBasedService {
 
     public MySQLResponseService(AbstractConnection connection) {
         super(connection);
+        this.connection = (BackendConnection) connection;
+        initFromConfig();
         this.proto = new MySQLProtoHandlerImpl(false);
         this.logicHandler = new MysqlBackendLogicHandler(this);
     }
+
+    private void initFromConfig() {
+        this.autocommitSynced = connection.getInstance().isAutocommitSynced();
+        boolean sysAutocommit = SystemConfig.getInstance().getAutocommit() == 1;
+        this.autocommit = sysAutocommit == autocommitSynced; // T + T-> T, T + F-> F, F +T ->F, F + F->T
+        this.isolationSynced = connection.getInstance().isIsolationSynced();
+        if (isolationSynced) {
+            this.txIsolation = SystemConfig.getInstance().getTxIsolation();
+        } else {
+            this.txIsolation = -1;
+        }
+        this.complexQuery = false;
+        this.usrVariables = new LinkedHashMap<>();
+        this.sysVariables = new LinkedHashMap<>();
+        this.dbuser = connection.getInstance().getConfig().getUser();
+    }
+
 
     @Override
     public void handleData(ServiceTask task) {
@@ -193,7 +212,7 @@ public class MySQLResponseService extends MySQLBasedService {
     }
 
     public void ping() {
-        this.write(PingPacket.PING);
+        this.writeDirectly(PingPacket.PING);
     }
 
     public void execCmd(String cmd) {
@@ -225,7 +244,7 @@ public class MySQLResponseService extends MySQLBasedService {
             return null;
         else {
             String strMultiplexNum = multiplexNum == 0 ? "" : "." + multiplexNum;
-            return sessionXaId.substring(0, sessionXaId.length() - 1) + "." + this.schema + strMultiplexNum + "'";
+            return sessionXaId.substring(0, sessionXaId.length() - 1) + "." + connection.getSchema() + strMultiplexNum + "'";
         }
     }
 
@@ -293,7 +312,7 @@ public class MySQLResponseService extends MySQLBasedService {
         Set<String> toResetSys = new HashSet<>();
         String setSql = getSetSQL(usrVariables, sysVariables, toResetSys);
         int setSqlFlag = setSql == null ? 0 : 1;
-        int schemaSyn = StringUtil.equals(this.schema, this.oldSchema) ? 0 : 1;
+        int schemaSyn = StringUtil.equals(connection.getSchema(), connection.getOldSchema()) ? 0 : 1;
         int charsetSyn = (this.getConnection().getCharsetName().equals(clientCharset)) ? 0 : 1;
         int txIsolationSyn = (this.txIsolation == clientTxIsolation) ? 0 : 1;
         int autoCommitSyn = (this.autocommit == expectAutocommit) ? 0 : 1;
@@ -304,7 +323,7 @@ public class MySQLResponseService extends MySQLBasedService {
 
         StringBuilder sb = new StringBuilder();
         if (schemaSyn == 1) {
-            getChangeSchemaCommand(sb, this.schema);
+            getChangeSchemaCommand(sb, connection.getSchema());
         }
         if (charsetSyn == 1) {
             getCharsetCommand(sb, clientCharset);
@@ -329,7 +348,7 @@ public class MySQLResponseService extends MySQLBasedService {
                     (schemaSyn == 1) + ", con:" + this);
         }
         metaDataSynced = false;
-        statusSync = new StatusSync(this.schema,
+        statusSync = new StatusSync(connection.getSchema(),
                 clientCharset, clientTxIsolation, expectAutocommit,
                 synCount, usrVariables, sysVariables, toResetSys);
         return sb;
@@ -498,7 +517,7 @@ public class MySQLResponseService extends MySQLBasedService {
 
 
     public String compactInfo() {
-        return "MySQLConnection host=" + connection.getHost() + ", port=" + connection.getPort() + ", schema=" + schema;
+        return "MySQLConnection host=" + connection.getHost() + ", port=" + connection.getPort() + ", schema=" + connection.getSchema();
     }
 
     public void executeMultiNode(RouteResultsetNode rrn, MySQLShardingService service,
@@ -699,11 +718,11 @@ public class MySQLResponseService extends MySQLBasedService {
     }
 
     public String getSchema() {
-        return schema;
+        return connection.getSchema();
     }
 
     public void setSchema(String schema) {
-        this.schema = schema;
+        this.connection.setSchema(schema);
     }
 
 
@@ -755,8 +774,8 @@ public class MySQLResponseService extends MySQLBasedService {
 
         private void updateConnectionInfo(MySQLResponseService service) {
             if (schema != null) {
-                service.schema = schema;
-                service.oldSchema = service.schema;
+                service.connection.setSchema(schema);
+                service.connection.setOldSchema(schema);
             }
             if (clientCharset != null) {
                 service.connection.setCharsetName(clientCharset);

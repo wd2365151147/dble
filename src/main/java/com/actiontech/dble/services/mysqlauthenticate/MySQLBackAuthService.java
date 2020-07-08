@@ -53,10 +53,6 @@ public class MySQLBackAuthService extends MySQLBasedService implements AuthServi
         this.handler = handler;
     }
 
-    public void initFromAuthInfo(AuthResultInfo info) {
-
-    }
-
     @Override
     protected void handleInnerData(byte[] data) {
         try {

@@ -30,7 +30,6 @@ public abstract class MultiNodeHandler implements ResponseHandler {
     protected final AtomicBoolean errorResponse = new AtomicBoolean(false);
     protected AtomicBoolean isFailed = new AtomicBoolean(false);
     protected volatile String error;
-    protected volatile byte packetId;
     protected Set<RouteResultsetNode> unResponseRrns = new HashSet<>();
     protected int errorConnsCnt = 0;
     protected boolean firstResponsed = false;
@@ -118,14 +117,13 @@ public abstract class MultiNodeHandler implements ResponseHandler {
         unResponseRrns.clear();
         isFailed.set(false);
         error = null;
-        packetId = (byte) session.getPacketId().get();
     }
 
     protected ErrorPacket createErrPkg(String errMsg) {
         ErrorPacket err = new ErrorPacket();
         lock.lock();
         try {
-            err.setPacketId(++packetId);
+            err.setPacketId(session.getShardingService().nextPacketId());
         } finally {
             lock.unlock();
         }

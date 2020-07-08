@@ -44,14 +44,14 @@ public class MySQLProtoLogicHandler {
             service.writeErrMessage(ErrorCode.ER_BAD_DB_ERROR, "Unknown database '" + db + "'");
             return;
         }
-        if (service.getUserConfig().getSchemas().contains(db)) {
+        if (!service.getUserConfig().getSchemas().contains(db)) {
             String s = "Access denied for user '" + service.getUser() + "' to database '" + db + "'";
             service.writeErrMessage(ErrorCode.ER_DBACCESS_DENIED_ERROR, s);
             return;
         }
         service.schema = db;
         service.getSession2().setRowCount(0);
-        service.write(OkPacket.OK);
+        service.writeDirectly(OkPacket.OK);
     }
 
 
@@ -106,11 +106,11 @@ public class MySQLProtoLogicHandler {
             int optCommand = mm.readUB2();
             if (optCommand == 0) {
                 service.setMultiStatementAllow(true);
-                service.write(EOFPacket.EOF);
+                service.writeDirectly(EOFPacket.EOF);
                 return;
             } else if (optCommand == 1) {
                 service.setMultiStatementAllow(false);
-                service.write(EOFPacket.EOF);
+                service.writeDirectly(EOFPacket.EOF);
                 return;
             }
         }
@@ -123,7 +123,7 @@ public class MySQLProtoLogicHandler {
             LOGGER.debug("resetConnection request");
         }
         service.innerCleanUp();
-        service.write(OkPacket.OK);
+        service.writeDirectly(OkPacket.OK);
     }
 
 }

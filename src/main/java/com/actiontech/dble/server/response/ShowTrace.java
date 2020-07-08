@@ -11,7 +11,6 @@ import com.actiontech.dble.net.mysql.EOFPacket;
 import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.ResultSetHeaderPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.StringUtil;
 
@@ -35,18 +34,18 @@ public final class ShowTrace {
     public static void response(MySQLShardingService shardingService) {
         ByteBuffer buffer = shardingService.allocate();
 
-        // write header
+        // writeDirectly header
         ResultSetHeaderPacket header = PacketUtil.getHeader(FIELD_COUNT);
         byte packetId = header.getPacketId();
         buffer = header.write(buffer, shardingService, true);
 
-        // write fields
+        // writeDirectly fields
         for (FieldPacket field : FIELDS) {
             field.setPacketId(++packetId);
             buffer = field.write(buffer, shardingService, true);
         }
 
-        // write eof
+        // writeDirectly eof
         EOFPacket eof = new EOFPacket();
         eof.setPacketId(++packetId);
         buffer = eof.write(buffer, shardingService, true);
@@ -62,12 +61,12 @@ public final class ShowTrace {
                 buffer = row.write(buffer, shardingService, true);
             }
         }
-        // write last eof
+        // writeDirectly last eof
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
         buffer = lastEof.write(buffer, shardingService, true);
 
-        // post write
-        shardingService.write(buffer);
+        // post writeDirectly
+        shardingService.writeDirectly(buffer);
     }
 }

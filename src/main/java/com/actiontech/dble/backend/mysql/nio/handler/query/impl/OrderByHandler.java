@@ -92,7 +92,7 @@ public class OrderByHandler extends OwnThreadDMLHandler {
     @Override
     protected void ownThreadJob(Object... objects) {
         MySQLResponseService service = (MySQLResponseService) objects[0];
-        recordElapsedTime("order write start :");
+        recordElapsedTime("order writeDirectly start :");
         try {
             while (true) {
                 if (terminate.get()) {
@@ -109,7 +109,7 @@ public class OrderByHandler extends OwnThreadDMLHandler {
                     //ignore error
                 }
             }
-            recordElapsedTime("order write end :");
+            recordElapsedTime("order writeDirectly end :");
             localResult.done();
             recordElapsedTime("order read start :");
             while (true) {

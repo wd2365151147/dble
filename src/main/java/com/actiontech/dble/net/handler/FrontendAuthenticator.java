@@ -81,7 +81,7 @@ public abstract class FrontendAuthenticator implements NIOHandler {
                 AuthSwitchRequestPackage authSwitch = new AuthSwitchRequestPackage("mysql_native_password".getBytes(), this.source.getSeed());
                 authSwitch.setPacketId(auth.getPacketId() + 1);
                 isAuthSwitch = true;
-                authSwitch.write(source);
+               // authSwitch.write(source);
                 return;
             }
         }

@@ -14,7 +14,6 @@ import com.actiontech.dble.net.mysql.ResultSetHeaderPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
 import com.actiontech.dble.route.RouteResultset;
 import com.actiontech.dble.route.RouteResultsetNode;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.parser.ServerParse;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.StringUtil;
@@ -72,18 +71,18 @@ public final class Explain2Handler {
 
     private static void showError(String stmt, MySQLShardingService service, String msg) {
         ByteBuffer buffer = service.allocate();
-        // write header
+        // writeDirectly header
         ResultSetHeaderPacket header = PacketUtil.getHeader(FIELD_COUNT);
         byte packetId = header.getPacketId();
         buffer = header.write(buffer, service, true);
 
-        // write fields
+        // writeDirectly fields
         for (FieldPacket field : FIELDS) {
             field.setPacketId(++packetId);
             buffer = field.write(buffer, service, true);
         }
 
-        // write eof
+        // writeDirectly eof
         EOFPacket eof = new EOFPacket();
         eof.setPacketId(++packetId);
         buffer = eof.write(buffer, service, true);
@@ -95,12 +94,12 @@ public final class Explain2Handler {
         row.setPacketId(++packetId);
         buffer = row.write(buffer, service, true);
 
-        // write last eof
+        // writeDirectly last eof
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
         buffer = lastEof.write(buffer, service, true);
 
-        // post write
-        service.write(buffer);
+        // post writeDirectly
+        service.writeDirectly(buffer);
     }
 }

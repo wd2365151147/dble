@@ -236,7 +236,7 @@ public class XMLDbLoader {
     }
 
     private PhysicalDbGroup getPhysicalDBPoolSingleWH(DbGroupConfig conf) {
-        //create PhysicalDbInstance for write host
+        //create PhysicalDbInstance for writeDirectly host
         PhysicalDbInstance writeSource = createDbInstance(conf, conf.getWriteInstanceConfig(), false);
         PhysicalDbInstance[] readSources = new PhysicalDbInstance[conf.getReadInstanceConfigs().length];
         int i = 0;

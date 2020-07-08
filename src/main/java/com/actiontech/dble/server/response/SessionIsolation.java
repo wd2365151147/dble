@@ -12,7 +12,6 @@ import com.actiontech.dble.net.mysql.EOFPacket;
 import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.ResultSetHeaderPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.StringUtil;
 
@@ -72,7 +71,7 @@ public final class SessionIsolation {
         service.getSession2().multiStatementPacket(lastEof, packetId);
         buffer = lastEof.write(buffer, service, true);
         boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
-        service.write(buffer);
+        service.writeDirectly(buffer);
         service.getSession2().multiStatementNextSql(multiStatementFlag);
     }
 

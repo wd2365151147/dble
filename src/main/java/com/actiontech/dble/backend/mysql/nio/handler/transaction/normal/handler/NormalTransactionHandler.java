@@ -94,8 +94,6 @@ public class NormalTransactionHandler extends MultiNodeHandler implements Transa
     @Override
     public void turnOnAutoCommit(byte[] previousSendData) {
         this.sendData = previousSendData;
-        this.packetId = previousSendData[3];
-        this.packetId--;
     }
 
     private void changeStageTo(TransactionStage newStage) {
@@ -187,7 +185,6 @@ public class NormalTransactionHandler extends MultiNodeHandler implements Transa
         errorConnsCnt = 0;
         firstResponsed = false;
         unResponseRrns.clear();
-        packetId = 0;
         isFailed.set(false);
     }
 

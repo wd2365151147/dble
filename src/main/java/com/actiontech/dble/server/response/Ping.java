@@ -25,9 +25,9 @@ public final class Ping {
 
     public static void response(FrontendConnection c) {
       /*  if (DbleServer.getInstance().isOnline()) {
-            c.write(c.writeToBuffer(OkPacket.OK, c.allocate()));
+            c.writeDirectly(c.writeToBuffer(OkPacket.OK, c.allocate()));
         } else {
-            ERROR.write(c);
+            ERROR.writeDirectly(c);
         }*/
     }
 

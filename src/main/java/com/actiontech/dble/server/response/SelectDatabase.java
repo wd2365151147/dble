@@ -11,7 +11,6 @@ import com.actiontech.dble.net.mysql.EOFPacket;
 import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.ResultSetHeaderPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.StringUtil;
 
@@ -52,7 +51,7 @@ public final class SelectDatabase implements InnerFuncResponse {
         shardingService.getSession2().multiStatementPacket(lastEof, packetId);
         buffer = lastEof.write(buffer, shardingService, true);
         boolean multiStatementFlag = shardingService.getSession2().getIsMultiStatement().get();
-        shardingService.write(buffer);
+        shardingService.writeDirectly(buffer);
         shardingService.getSession2().multiStatementNextSql(multiStatementFlag);
     }
 

@@ -13,7 +13,6 @@ import com.actiontech.dble.route.RouteResultset;
 import com.actiontech.dble.route.parser.druid.ServerSchemaStatVisitor;
 import com.actiontech.dble.route.parser.druid.impl.DefaultDruidParser;
 import com.actiontech.dble.route.util.RouterUtil;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.util.SchemaUtil;
 import com.actiontech.dble.server.util.SchemaUtil.SchemaInfo;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
@@ -46,7 +45,7 @@ public class DruidDropTableParser extends DefaultDruidParser {
         Map<String, BaseTableConfig> tables = schemaInfo.getSchemaConfig().getTables();
         BaseTableConfig tc = tables.get(schemaInfo.getTable());
         if (tc == null) {
-            service.write(service.writeToBuffer(OkPacket.OK, service.allocate()));
+            service.writeDirectly(service.writeToBuffer(OkPacket.OK, service.allocate()));
             rrs.setFinishedExecute(true);
         } else {
             RouterUtil.routeToDDLNode(schemaInfo, rrs);

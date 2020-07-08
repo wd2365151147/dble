@@ -80,7 +80,7 @@ public final class KillHandler {
         if (killSession.getTransactionManager().getXAStage() != null ||
                 killSession.getSessionStage() == SessionStage.Init || killSession.getSessionStage() == SessionStage.Finished) {
             boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
-            getOkPacket(service).write(service.getConnection());
+            getOkPacket(service).writeDirectly(service.getConnection());
             service.getSession2().multiStatementNextSql(multiStatementFlag);
             return;
         }
@@ -88,7 +88,7 @@ public final class KillHandler {
         killSession.setKilled(true);
         // return ok to front connection that sends kill query
         boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
-        getOkPacket(service).write(service.getConnection());
+        getOkPacket(service).writeDirectly(service.getConnection());
         service.getSession2().multiStatementNextSql(multiStatementFlag);
 
         while (true) {

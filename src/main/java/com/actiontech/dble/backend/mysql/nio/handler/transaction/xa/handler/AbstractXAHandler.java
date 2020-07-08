@@ -143,7 +143,6 @@ public abstract class AbstractXAHandler extends MultiNodeHandler {
         errorConnsCnt = 0;
         firstResponsed = false;
         unResponseRrns.clear();
-        packetId = 0;
         isFailed.set(false);
     }
 

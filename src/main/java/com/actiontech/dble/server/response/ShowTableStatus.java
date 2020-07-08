@@ -75,13 +75,13 @@ public final class ShowTableStatus {
     }
 
     private static void writeRowEof(ByteBuffer buffer, MySQLShardingService shardingService, byte packetId) {
-        // write last eof
+        // writeDirectly last eof
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
         buffer = lastEof.write(buffer, shardingService, true);
 
-        // post write
-        shardingService.write(buffer);
+        // post writeDirectly
+        shardingService.writeDirectly(buffer);
     }
 
     private static PackageBufINf writeTablesHeaderAndRows(ByteBuffer buffer, MySQLShardingService service, Map<String, TableMeta> tableMap, String likeCondition) {
@@ -95,13 +95,13 @@ public final class ShowTableStatus {
 
         EOFPacket eof = new EOFPacket();
         eof.setPacketId(++packetId);
-        // write header
+        // writeDirectly header
         buffer = header.write(buffer, service, true);
-        // write fields
+        // writeDirectly fields
         for (FieldPacket field : fields) {
             buffer = field.write(buffer, service, true);
         }
-        // write eof
+        // writeDirectly eof
         eof.write(buffer, service, true);
 
         Pattern pattern = null;

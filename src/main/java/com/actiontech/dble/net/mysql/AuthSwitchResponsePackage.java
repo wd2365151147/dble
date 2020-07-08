@@ -7,6 +7,7 @@ package com.actiontech.dble.net.mysql;
 
 import com.actiontech.dble.backend.mysql.BufferUtil;
 import com.actiontech.dble.backend.mysql.MySQLMessage;
+import com.actiontech.dble.net.connection.AbstractConnection;
 
 /**
  * Authentication Method Switch Response Packet.
@@ -34,6 +35,11 @@ public class AuthSwitchResponsePackage extends MySQLPacket {
 
     public byte[] getAuthPluginData() {
         return authPluginData;
+    }
+
+    @Override
+    public void bufferWrite(AbstractConnection connection) {
+        
     }
 
     @Override

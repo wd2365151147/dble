@@ -7,12 +7,10 @@ package com.actiontech.dble.server.response;
 
 import com.actiontech.dble.backend.mysql.PacketUtil;
 import com.actiontech.dble.config.Fields;
-import com.actiontech.dble.net.connection.AbstractConnection;
 import com.actiontech.dble.net.mysql.EOFPacket;
 import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.ResultSetHeaderPacket;
 import com.actiontech.dble.net.service.AbstractService;
-import com.actiontech.dble.server.ServerConnection;
 
 import java.nio.ByteBuffer;
 
@@ -48,28 +46,28 @@ public final class InformationSchemaProfiling {
         EOF.setPacketId(++packetId);
         ByteBuffer buffer = service.allocate();
 
-        // write header
+        // writeDirectly header
         buffer = HEADER.write(buffer, service, true);
 
-        // write fields
+        // writeDirectly fields
         for (FieldPacket field : FIELDS) {
             buffer = field.write(buffer, service, true);
         }
 
-        // write eof
+        // writeDirectly eof
         buffer = EOF.write(buffer, service, true);
 
-        // write rows
+        // writeDirectly rows
         packetId = EOF.getPacketId();
 
 
-        // write last eof
+        // writeDirectly last eof
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
         buffer = lastEof.write(buffer, service, true);
 
-        // post write
-        service.write(buffer);
+        // post writeDirectly
+        service.writeDirectly(buffer);
 
 
     }

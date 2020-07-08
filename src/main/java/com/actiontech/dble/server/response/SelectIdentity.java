@@ -12,7 +12,6 @@ import com.actiontech.dble.net.mysql.FieldPacket;
 import com.actiontech.dble.net.mysql.ResultSetHeaderPacket;
 import com.actiontech.dble.net.mysql.RowDataPacket;
 import com.actiontech.dble.route.parser.util.ParseUtil;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.LongUtil;
 
@@ -40,34 +39,34 @@ public final class SelectIdentity {
 
         byte packetId = setCurrentPacket(service);
         HEADER.setPacketId(++packetId);
-        // write header
+        // writeDirectly header
         buffer = HEADER.write(buffer, service, true);
 
-        // write fields
+        // writeDirectly fields
 
         FieldPacket field = PacketUtil.getField(alias, orgName, Fields.FIELD_TYPE_LONGLONG);
         field.setPacketId(++packetId);
         buffer = field.write(buffer, service, true);
 
-        // write eof
+        // writeDirectly eof
         EOFPacket eof = new EOFPacket();
         eof.setPacketId(++packetId);
         buffer = eof.write(buffer, service, true);
 
-        // write rows
+        // writeDirectly rows
         RowDataPacket row = new RowDataPacket(FIELD_COUNT);
         row.add(LongUtil.toBytes(service.getLastInsertId()));
         row.setPacketId(++packetId);
         buffer = row.write(buffer, service, true);
 
-        // write last eof
+        // writeDirectly last eof
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
         service.getSession2().multiStatementPacket(lastEof, packetId);
         buffer = lastEof.write(buffer, service, true);
         boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
-        // post write
-        service.write(buffer);
+        // post writeDirectly
+        service.writeDirectly(buffer);
         service.getSession2().multiStatementNextSql(multiStatementFlag);
     }
 

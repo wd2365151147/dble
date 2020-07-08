@@ -8,7 +8,6 @@ package com.actiontech.dble.server.handler;
 import com.actiontech.dble.backend.mysql.PacketUtil;
 import com.actiontech.dble.config.Fields;
 import com.actiontech.dble.net.mysql.*;
-import com.actiontech.dble.server.ServerConnection;
 import com.actiontech.dble.server.util.SchemaUtil;
 import com.actiontech.dble.services.mysqlsharding.MySQLShardingService;
 import com.actiontech.dble.util.StringUtil;
@@ -37,7 +36,7 @@ public final class MysqlSystemSchemaHandler {
         }
 
         if (mySqlSelectQueryBlock == null) {
-            service.write(service.writeToBuffer(OkPacket.OK, service.allocate()));
+            service.writeDirectly(service.writeToBuffer(OkPacket.OK, service.allocate()));
             return;
         }
         FieldPacket[] fields = generateFieldPacket(mySqlSelectQueryBlock.getSelectList());
@@ -74,23 +73,23 @@ public final class MysqlSystemSchemaHandler {
 
         ByteBuffer buffer = service.allocate();
 
-        // write header
+        // writeDirectly header
         ResultSetHeaderPacket header = PacketUtil.getHeader(fieldCount);
         byte packetId = header.getPacketId();
         buffer = header.write(buffer, service, true);
 
-        // write fields
+        // writeDirectly fields
         for (FieldPacket field : fields) {
             field.setPacketId(++packetId);
             buffer = field.write(buffer, service, true);
         }
 
-        // write eof
+        // writeDirectly eof
         EOFPacket eof = new EOFPacket();
         eof.setPacketId(++packetId);
         buffer = eof.write(buffer, service, true);
 
-        // write rows
+        // writeDirectly rows
         if (rows != null) {
             for (RowDataPacket row : rows) {
                 row.setPacketId(++packetId);
@@ -98,13 +97,13 @@ public final class MysqlSystemSchemaHandler {
             }
         }
 
-        // write last eof
+        // writeDirectly last eof
         EOFPacket lastEof = new EOFPacket();
         lastEof.setPacketId(++packetId);
         buffer = lastEof.write(buffer, service, true);
 
-        // post write
-        service.write(buffer);
+        // post writeDirectly
+        service.writeDirectly(buffer);
     }
 }
 

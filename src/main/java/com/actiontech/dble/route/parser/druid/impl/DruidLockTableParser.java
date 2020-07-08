@@ -28,7 +28,7 @@ import java.sql.SQLNonTransientException;
 import java.util.*;
 
 /**
- * lock tables [table] [write|read]
+ * lock tables [table] [writeDirectly|read]
  *
  * @author songdabin
  */

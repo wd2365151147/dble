@@ -308,15 +308,28 @@ public abstract class AbstractConnection implements Connection {
         write(buffer);
     }
 
+    public final boolean registerWrite(ByteBuffer buffer) {
+
+        // if ansyn writeDirectly finished event got lock before me ,then writing
+        // flag is set false but not start a writeDirectly request
+        // so we check again
+        try {
+            return this.socketWR.registerWrite(buffer);
+        } catch (Exception e) {
+            LOGGER.info("writeDirectly err:", e);
+            this.close("writeDirectly err:" + e);
+            return false;
+        }
+    }
+
     public void write(byte[] data) {
-        //todo 补全这个部分的方法内容
-        ByteBuffer buffer = this.allocate();
+        service.writeDirectly(data);
     }
 
     public void write(ByteBuffer buffer) {
         if (isClosed) {
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("it will not write because of closed " + this);
+                LOGGER.debug("it will not writeDirectly because of closed " + this);
             }
             if (buffer != null) {
                 recycle(buffer);
@@ -332,14 +345,14 @@ public abstract class AbstractConnection implements Connection {
         } else {*/
         writeQueue.offer(new WriteOutTask(buffer, false));
 
-        // if ansyn write finished event got lock before me ,then writing
-        // flag is set false but not start a write request
+        // if ansyn writeDirectly finished event got lock before me ,then writing
+        // flag is set false but not start a writeDirectly request
         // so we check again
         try {
             this.socketWR.doNextWriteCheck();
         } catch (Exception e) {
-            LOGGER.info("write err:", e);
-            this.close("write err:" + e);
+            LOGGER.info("writeDirectly err:", e);
+            this.close("writeDirectly err:" + e);
         }
     }
 
