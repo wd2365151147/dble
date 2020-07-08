@@ -1010,6 +1010,14 @@ public class NonBlockingSession implements Session {
         return ok.toBytes();
     }
 
+    public OkPacket getOKPacket(){
+        OkPacket ok = new OkPacket();
+        byte packet = (byte) this.getPacketId().incrementAndGet();
+        ok.read(OkPacket.OK);
+        ok.setPacketId(packet);
+        return ok;
+    }
+
     public void queryCount() {
         queriesCounter.incrementAndGet();
     }

@@ -320,7 +320,7 @@ public class MySQLShardingService extends MySQLBasedService implements FrontEndS
     public void initFromAuthInfo(AuthResultInfo info) {
 
         AuthPacket auth = info.getMysqlAuthPacket();
-
+        this.schema = auth.getDatabase();
         this.userConfig = info.getUserConfig();
         this.user = new UserName(auth.getUser(), auth.getTenant());
 

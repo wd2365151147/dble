@@ -49,11 +49,9 @@ public final class UseHandler {
             }
         }
         service.setSchema(schema);
-        ByteBuffer buffer = service.allocate();
-        boolean multiStatementFlag = service.getSession2().getIsMultiStatement().get();
         service.getSession2().setRowCount(0);
-        service.writeDirectly(service.writeToBuffer(service.getSession2().getOkByteArray(), buffer));
-        service.getSession2().multiStatementNextSql(multiStatementFlag);
+
+        service.write(service.getSession2().getOKPacket());
     }
 
 }
